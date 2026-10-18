@@ -47,7 +47,9 @@ class MainActivity : AppCompatActivity() {
         pickBtn = findViewById(R.id.pickBtn)
         historyStore = HistoryStore(this)
 
-        viewPager.offscreenPageLimit = 1
+        // 缓存前后各一页，确保滑动时组件已经加载
+        viewPager.offscreenPageLimit = 1 
+        
         pickBtn.setOnClickListener { pickFolder.launch(null) }
 
         val savedUri = prefs.getString("folder", null)
