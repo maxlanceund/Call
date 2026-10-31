@@ -2,20 +2,15 @@ package com.qs
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
-import android.util.SparseArray
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.media3.common.MediaItem
-import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
-import androidx.media3.exoplayer.DefaultLoadControl
 import androidx.media3.exoplayer.DefaultRenderersFactory
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import androidx.recyclerview.widget.RecyclerView
-import kotlin.math.abs
 
 class VideoAdapter(
     private val context: Context,
@@ -24,7 +19,8 @@ class VideoAdapter(
     private val onLongPress: () -> Unit
 ) : RecyclerView.Adapter<VideoAdapter.VH>() {
 
-    private val playerCache = SparseArray<ExoPlayer>()
+    // 【核心重构】全场只有一个播放器！不再创建池子！
+    private var sharedPlayer: ExoPlayer? = null
     private var currentPos = 0
 
     inner class VH(view: View) : RecyclerView.ViewHolder(view) {
@@ -37,53 +33,15 @@ class VideoAdapter(
     }
 
     override fun onBindViewHolder(holder: VH, position: Int) {
-        val uri = videos[position]
-        var player = playerCache.get(position)
-
-        if (player == null) {
-            // 【修正 1】去掉 EXTENSION_RENDERER_MODE_PREFER，纯走系统原生硬解
-            val renderersFactory = DefaultRenderersFactory(context)
-                .setEnableDecoderFallback(true)
-
-            // 极速起播策略：起播仅需 200ms 数据
-            val loadControl = DefaultLoadControl.Builder()
-                .setBufferDurationsMs(15000, 60000, 200, 1000)
-                .build()
-
-            player = ExoPlayer.Builder(context, renderersFactory)
-                .setLoadControl(loadControl)
-                .build()
-
-            player.setMediaItem(MediaItem.fromUri(uri))
-            player.repeatMode = Player.REPEAT_MODE_ONE
-            
-            // 【修正 2】只预读数据，绝对不预播放！这样不抢占硬件解码器
-            player.prepare()
-
-            val saved = historyStore.getPosition(uri.toString())
-            if (saved > 0) player.seekTo(saved)
-
-            player.addListener(object : Player.Listener {
-                override fun onPlayerError(error: PlaybackException) {
-                    Log.e("QsPlayer", "播放失败: ${error.errorCodeName}", error)
-                }
-            })
-            playerCache.put(position, player)
-        }
-
-        holder.playerView.player = player
-
-        // 只有当前页才播放，其他页保持静音暂停（但是后台数据已经在读了）
-        if (position == currentPos) {
-            player.volume = 1f
-            player.play()
-        } else {
-            player.volume = 0f
-            player.pause()
-        }
+        // 绑定的时候只挂载界面，不操作播放器
+        holder.playerView.player = sharedPlayer
+        holder.playerView.setKeepContentOnPlayerReset(true)
+        holder.playerView.setShutterBackgroundColor(android.graphics.Color.DKGRAY)
 
         holder.itemView.setOnClickListener {
-            if (player.isPlaying) player.pause() else player.play()
+            sharedPlayer?.let { p ->
+                if (p.isPlaying) p.pause() else p.play()
+            }
         }
 
         holder.itemView.setOnLongClickListener {
@@ -94,51 +52,45 @@ class VideoAdapter(
 
     override fun onViewRecycled(holder: VH) {
         super.onViewRecycled(holder)
-        holder.playerView.player = null
+        // 不要清空 player，保留残影，防止黑屏！
     }
 
     override fun getItemCount() = videos.size
 
+    // 当页面切换时，由 MainActivity 触发
     fun setCurrent(position: Int) {
-        playerCache.get(currentPos)?.let {
-            historyStore.savePosition(videos[currentPos].toString(), it.currentPosition)
-            it.pause()
-            it.volume = 0f
-        }
-
+        if (position == currentPos && sharedPlayer != null) return
         currentPos = position
 
-        playerCache.get(position)?.let {
-            it.volume = 1f
-            it.play()
+        // 初始化唯一的播放器
+        if (sharedPlayer == null) {
+            val renderersFactory = DefaultRenderersFactory(context).setEnableDecoderFallback(true)
+            sharedPlayer = ExoPlayer.Builder(context, renderersFactory).build()
+            sharedPlayer?.repeatMode = Player.REPEAT_MODE_ONE
         }
 
-        // 【修正 3】保洁员：超过距离 2 的视频才释放
-        val keysToRemove = mutableListOf<Int>()
-        for (i in 0 until playerCache.size()) {
-            val key = playerCache.keyAt(i)
-            if (abs(key - currentPos) > 2) {
-                val p = playerCache.valueAt(i)
-                historyStore.savePosition(videos[key].toString(), p.currentPosition)
-                p.release()
-                keysToRemove.add(key)
-            }
+        val uri = videos[position]
+        // 保存上一个视频的进度
+        historyStore.savePosition(uri.toString(), sharedPlayer?.currentPosition ?: 0L)
+
+        // 换台！
+        sharedPlayer?.let { player ->
+            player.setMediaItem(MediaItem.fromUri(uri))
+            val saved = historyStore.getPosition(uri.toString())
+            if (saved > 0) player.seekTo(saved)
+            player.prepare()
+            player.play()
         }
-        keysToRemove.forEach { playerCache.remove(it) }
     }
 
     fun saveCurrentPosition() {
-        playerCache.get(currentPos)?.let {
+        sharedPlayer?.let {
             historyStore.savePosition(videos[currentPos].toString(), it.currentPosition)
         }
     }
 
     fun releaseAll() {
-        for (i in 0 until playerCache.size()) {
-            val p = playerCache.valueAt(i)
-            historyStore.savePosition(videos[playerCache.keyAt(i)].toString(), p.currentPosition)
-            p.release()
-        }
-        playerCache.clear()
+        sharedPlayer?.release()
+        sharedPlayer = null
     }
 }
