@@ -37,13 +37,11 @@ fun CallApp() {
     
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
 
-    // 刷新历史列表
     fun refreshLogs() {
         val files = context.filesDir.listFiles { file -> file.extension == "md" }
         allLogs = files?.sortedByDescending { it.lastModified() } ?: emptyList()
     }
 
-    // 页面加载逻辑
     LaunchedEffect(Unit) {
         refreshLogs()
         if (allLogs.isNotEmpty()) {
@@ -56,7 +54,6 @@ fun CallApp() {
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
-    // 无感保存
     LaunchedEffect(text) {
         if (!isReadOnly && text.isNotEmpty()) {
             delay(1000)
@@ -70,7 +67,6 @@ fun CallApp() {
 
     val displayDate = currentFile?.name?.replace(".md", "")?.substringBefore("_") ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-    // 历史记录弹窗
     if (isHistoryOpen) {
         AlertDialog(
             onDismissRequest = { isHistoryOpen = false },
@@ -78,7 +74,8 @@ fun CallApp() {
             title = { Text("> LOGS", color = textColor, fontFamily = FontFamily.Monospace) },
             text = {
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
-                    items(allLogs) { file ->
+                    // 💥 核心修复1：加上 key，防止 Compose 在删除时发生节点错乱
+                    items(allLogs, key = { it.absolutePath }) { file ->
                         val fileName = file.name.replace(".md", "")
                         val displayName = if (fileName.contains("_")) fileName.replace("_", " / ") else "$fileName / 00:00:00"
                         Row(
@@ -86,7 +83,6 @@ fun CallApp() {
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // 点击文字，进入阅读
                             Text(
                                 text = displayName,
                                 color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f),
@@ -102,7 +98,6 @@ fun CallApp() {
                                     }
                             )
                             
-                            // 🌟 新增：极简的销毁按钮 [x]
                             Text(
                                 text = "[x]",
                                 color = textColor.copy(alpha = 0.3f),
@@ -110,13 +105,22 @@ fun CallApp() {
                                 fontSize = 14.sp,
                                 modifier = Modifier
                                     .clickable {
-                                        file.delete() // 物理删除文件
+                                        // 💥 核心修复2：安全删除逻辑
+                                        val wasCurrent = (currentFile == file)
+                                        file.delete()
                                         refreshLogs()
-                                        // 如果删的是当前正在看的，或者全删光了，清空屏幕
-                                        if (currentFile == file) {
-                                            currentFile = allLogs.firstOrNull()
-                                            text = currentFile?.readText() ?: ""
-                                            isReadOnly = true
+                                        
+                                        // 如果删掉的是当前正在看的，必须清空状态，防止去读已经消失的文件
+                                        if (wasCurrent) {
+                                            if (allLogs.isEmpty()) {
+                                                currentFile = null
+                                                text = ""
+                                                isReadOnly = true
+                                            } else {
+                                                currentFile = allLogs.first()
+                                                text = currentFile?.readText() ?: ""
+                                                isReadOnly = true
+                                            }
                                         }
                                     }
                                     .padding(start = 16.dp, end = 8.dp)
@@ -129,11 +133,8 @@ fun CallApp() {
         )
     }
 
-    // 主界面
     Column(modifier = Modifier.fillMaxSize().background(bgColor).padding(24.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            
-            // 点击日期，打开历史列表
             Text(
                 text = displayDate,
                 color = textColor.copy(alpha = 0.6f),
@@ -143,6 +144,7 @@ fun CallApp() {
             )
             
             Row {
+                // 只有当存在文件，且当前不是输入状态时，才显示新建
                 if (isReadOnly) {
                     TextButton(onClick = {
                         val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
@@ -181,7 +183,7 @@ fun CallApp() {
     }
 }
 
-class ComponentActivity : androidx.activity.ComponentActivity() {
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { CallApp() }
