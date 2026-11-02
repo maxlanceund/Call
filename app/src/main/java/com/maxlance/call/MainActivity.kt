@@ -38,6 +38,9 @@ fun CallApp() {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
+    
+    // 新增：滚动状态
+    val scrollState = rememberScrollState()
 
     var isPaperMode by remember { mutableStateOf(true) }
     var isHistoryOpen by remember { mutableStateOf(false) }
@@ -65,8 +68,12 @@ fun CallApp() {
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
+    // 核心修复：每次文字变化，自动把滚动条拉到最底部
     LaunchedEffect(text) {
         if (!isReadOnly && text.isNotEmpty()) {
+            scrollState.animateScrollTo(scrollState.maxValue)
+            
+            // 原有的自动保存逻辑
             delay(1000)
             try { currentFile?.writeText(text) } catch (e: Exception) { e.printStackTrace() }
         }
@@ -119,6 +126,7 @@ fun CallApp() {
         )
     }
 
+    // 外层避让键盘
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -126,6 +134,7 @@ fun CallApp() {
             .imePadding() 
             .padding(24.dp)
     ) {
+        // 顶部菜单栏（固定）
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = displayDate,
@@ -171,6 +180,7 @@ fun CallApp() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // 输入框（占据剩余空间，内部滚动）
         BasicTextField(
             value = text,
             onValueChange = { if (!isReadOnly) text = it },
@@ -179,7 +189,7 @@ fun CallApp() {
                 .fillMaxWidth()
                 .weight(1f) 
                 .focusRequester(focusRequester)
-                .verticalScroll(rememberScrollState()),
+                .verticalScroll(scrollState), // 绑定滚动状态
             textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 28.sp, fontFamily = FontFamily.Monospace),
             decorationBox = { innerTextField ->
                 if (text.isEmpty() && !isReadOnly) {
