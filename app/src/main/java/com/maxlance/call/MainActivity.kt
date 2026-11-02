@@ -54,8 +54,10 @@ fun CallApp() {
     var currentFile by remember { mutableStateOf<File?>(null) }
     var isReadOnly by remember { mutableStateOf(true) }
     var text by remember { mutableStateOf("") }
-
     var isDraft by remember { mutableStateOf(false) }
+
+    // 新增：文字大小状态
+    var fontSize by remember { mutableStateOf(16.sp) }
 
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
 
@@ -103,7 +105,8 @@ fun CallApp() {
         }
     }
 
-    val displayDateAnnotated = remember(currentFile) {
+    // 修复Bug2：把 isPaperMode 加入 remember 的 key，让颜色随明暗模式刷新
+    val displayDateAnnotated = remember(currentFile, isPaperMode) {
         val dateStr = currentFile?.name?.replace(".md", "") ?: SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
         val datePart = dateStr.substringBefore("_").replace("-", " ")
         val timePart = if (dateStr.contains("_")) {
@@ -186,15 +189,45 @@ fun CallApp() {
                 modifier = Modifier.clickable { isHistoryOpen = true }
             )
 
-            Text(
-                text = "◐",
-                color = textColor.copy(alpha = 0.6f),
-                fontSize = 18.sp,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier
-                    .clickable { isPaperMode = !isPaperMode }
-                    .padding(start = 16.dp, bottom = 4.dp)
-            )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // 新增：减小字号按钮
+                Text(
+                    text = "-",
+                    color = textColor.copy(alpha = 0.6f),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .clickable { 
+                            if (fontSize > 12.sp) fontSize = (fontSize.value - 2).sp 
+                        }
+                        .padding(horizontal = 8.dp)
+                )
+                
+                // 新增：增大字号按钮
+                Text(
+                    text = "+",
+                    color = textColor.copy(alpha = 0.6f),
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .clickable { 
+                            if (fontSize < 32.sp) fontSize = (fontSize.value + 2).sp 
+                        }
+                        .padding(horizontal = 8.dp)
+                )
+
+                Text(
+                    text = "◐",
+                    color = textColor.copy(alpha = 0.6f),
+                    fontSize = 18.sp,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier
+                        .clickable { isPaperMode = !isPaperMode }
+                        .padding(start = 12.dp, bottom = 2.dp)
+                )
+            }
         }
 
         Box(
@@ -206,16 +239,21 @@ fun CallApp() {
                 value = text,
                 onValueChange = { if (!isReadOnly) text = it },
                 readOnly = isReadOnly,
+                // 修复Bug1：移除两侧可能导致光标卡死的隐形留白
                 modifier = Modifier
                     .fillMaxSize()
                     .focusRequester(focusRequester)
                     .verticalScroll(scrollState),
-                textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 28.sp, fontFamily = FontFamily.Monospace),
-                // 🚨 核心修改点在这里：把光标改成和文字一样的纯色！
+                textStyle = TextStyle(
+                    color = textColor, 
+                    fontSize = fontSize, // 使用动态字号
+                    lineHeight = (fontSize.value * 1.6).sp, // 行高跟着字号动态变，保证排版优雅
+                    fontFamily = FontFamily.Monospace
+                ),
                 cursorBrush = SolidColor(textColor),
                 decorationBox = { innerTextField ->
                     if (text.isEmpty() && !isReadOnly) {
-                        Text("> Start logging...", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace)
+                        Text("> Start logging...", color = textColor.copy(alpha = 0.2f), fontSize = fontSize, fontFamily = FontFamily.Monospace)
                     }
                     innerTextField()
                 }
