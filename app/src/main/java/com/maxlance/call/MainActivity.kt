@@ -29,13 +29,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// 💥 核心修复：加上实验性 API 的通行证
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CallApp() {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
-    
     val focusRequester = remember { FocusRequester() }
 
     var isPaperMode by remember { mutableStateOf(true) }
@@ -52,6 +50,7 @@ fun CallApp() {
         allLogs = files?.sortedByDescending { it.lastModified() } ?: emptyList()
     }
 
+    // 初始化
     LaunchedEffect(Unit) {
         refreshLogs()
         if (allLogs.isNotEmpty()) {
@@ -64,6 +63,7 @@ fun CallApp() {
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
+    // 无感保存
     LaunchedEffect(text) {
         if (!isReadOnly && text.isNotEmpty()) {
             delay(1000)
@@ -71,12 +71,23 @@ fun CallApp() {
         }
     }
 
+    // 退出保存
     DisposableEffect(Unit) {
         onDispose { if (!isReadOnly && text.isNotEmpty()) currentFile?.writeText(text) }
     }
 
+    // 核心修复：当切换为编辑模式时，延迟一帧弹出键盘，保证 100% 成功
+    LaunchedEffect(isReadOnly) {
+        if (!isReadOnly) {
+            delay(100) // 给界面一点时间渲染
+            focusRequester.requestFocus()
+            keyboardController?.show()
+        }
+    }
+
     val displayDate = currentFile?.name?.replace(".md", "")?.substringBefore("_") ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
+    // 纯文本历史弹窗（无任何删除按钮）
     if (isHistoryOpen) {
         AlertDialog(
             onDismissRequest = { isHistoryOpen = false },
@@ -87,52 +98,22 @@ fun CallApp() {
                     items(allLogs, key = { it.absolutePath }) { file ->
                         val fileName = file.name.replace(".md", "")
                         val displayName = if (fileName.contains("_")) fileName.replace("_", " / ") else "$fileName / 00:00:00"
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = displayName,
-                                color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f),
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 14.sp,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable {
-                                        currentFile = file
-                                        text = file.readText()
-                                        isReadOnly = true
-                                        isHistoryOpen = false
-                                    }
-                            )
-                            
-                            Text(
-                                text = "[x]",
-                                color = textColor.copy(alpha = 0.3f),
-                                fontFamily = FontFamily.Monospace,
-                                fontSize = 14.sp,
-                                modifier = Modifier
-                                    .clickable {
-                                        val wasCurrent = (currentFile == file)
-                                        file.delete()
-                                        refreshLogs()
-                                        
-                                        if (wasCurrent) {
-                                            if (allLogs.isEmpty()) {
-                                                currentFile = null
-                                                text = ""
-                                                isReadOnly = true
-                                            } else {
-                                                currentFile = allLogs.first()
-                                                text = currentFile?.readText() ?: ""
-                                                isReadOnly = true
-                                            }
-                                        }
-                                    }
-                                    .padding(start = 16.dp, end = 8.dp)
-                            )
-                        }
+                        
+                        Text(
+                            text = displayName,
+                            color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f),
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    currentFile = file
+                                    text = file.readText()
+                                    isReadOnly = true
+                                    isHistoryOpen = false
+                                }
+                                .padding(vertical = 12.dp)
+                        )
                     }
                 }
             },
@@ -140,6 +121,7 @@ fun CallApp() {
         )
     }
 
+    // 主界面
     Column(modifier = Modifier.fillMaxSize().background(bgColor).padding(24.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -151,6 +133,7 @@ fun CallApp() {
             )
             
             Row {
+                // 只有在只读状态，才允许新建
                 if (isReadOnly) {
                     TextButton(onClick = {
                         val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
@@ -158,11 +141,8 @@ fun CallApp() {
                         newFile.createNewFile()
                         currentFile = newFile
                         text = ""
-                        isReadOnly = false
+                        isReadOnly = false // 切换状态后，上面的 LaunchedEffect 会自动弹键盘
                         refreshLogs()
-                        
-                        focusRequester.requestFocus()
-                        keyboardController?.show()
                     }) {
                         Text("[ + NEW ]", color = textColor.copy(alpha = 0.8f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                     }
