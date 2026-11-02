@@ -17,7 +17,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -36,16 +35,13 @@ fun CallApp() {
     var isReadOnly by remember { mutableStateOf(true) }
     var text by remember { mutableStateOf("") }
     
-    // 所有的历史文件列表
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
 
-    // 刷新历史列表
     fun refreshLogs() {
         val files = context.filesDir.listFiles { file -> file.extension == "md" }
         allLogs = files?.sortedByDescending { it.lastModified() } ?: emptyList()
     }
 
-    // 初始化：加载最新的一篇
     LaunchedEffect(Unit) {
         refreshLogs()
         if (allLogs.isNotEmpty()) {
@@ -58,7 +54,6 @@ fun CallApp() {
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
-    // 无感保存
     LaunchedEffect(text) {
         if (!isReadOnly && text.isNotEmpty()) {
             delay(1000)
@@ -72,14 +67,14 @@ fun CallApp() {
 
     val displayDate = currentFile?.name?.replace(".md", "")?.substringBefore("_") ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-    // 历史记录弹窗
     if (isHistoryOpen) {
         AlertDialog(
             onDismissRequest = { isHistoryOpen = false },
             confirmButton = {},
             title = { Text("> LOGS", color = textColor, fontFamily = FontFamily.Monospace) },
             text = {
-                LazyColumn(modifier = Modifier.fillMaxWidth()) {
+                // 核心优化：限制高度，超过就滚动，保持弹窗不撑满屏幕
+                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
                     items(allLogs) { file ->
                         val fileName = file.name.replace(".md", "")
                         val displayName = if (fileName.contains("_")) fileName.replace("_", " / ") else "$fileName / 00:00:00"
@@ -105,11 +100,8 @@ fun CallApp() {
         )
     }
 
-    // 主界面
     Column(modifier = Modifier.fillMaxSize().background(bgColor).padding(24.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            
-            // 【核心更新】点击日期，打开历史列表
             Text(
                 text = displayDate,
                 color = textColor.copy(alpha = 0.6f),
