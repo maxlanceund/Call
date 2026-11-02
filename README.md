@@ -1,5 +1,7 @@
 <div align="center">
 <img src="call_logo_rounded.png" width="120" alt="Call Logo">
+
+  
   # Call
   
   **A minimalist, immutable, offline terminal log for Android.**<br>
