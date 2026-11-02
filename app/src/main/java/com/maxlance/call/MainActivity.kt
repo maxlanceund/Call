@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -54,7 +55,6 @@ fun CallApp() {
     var isReadOnly by remember { mutableStateOf(true) }
     var text by remember { mutableStateOf("") }
 
-    // 核心标记：只有正在新建的草稿，才能点击屏幕重新唤醒编辑
     var isDraft by remember { mutableStateOf(false) }
 
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
@@ -79,7 +79,6 @@ fun CallApp() {
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
-    // 自动保存
     LaunchedEffect(text) {
         if (!isReadOnly && text.isNotEmpty()) {
             scrollState.animateScrollTo(scrollState.maxValue)
@@ -88,7 +87,6 @@ fun CallApp() {
         }
     }
 
-    // 退出强制保存（彻底解耦 UI 状态）
     DisposableEffect(Unit) {
         onDispose { 
             if (currentFile != null && text.isNotEmpty()) {
@@ -105,10 +103,8 @@ fun CallApp() {
         }
     }
 
-    // 日期混排：阿拉伯数字 + 隐身时间尾数
     val displayDateAnnotated = remember(currentFile) {
         val dateStr = currentFile?.name?.replace(".md", "") ?: SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
-        
         val datePart = dateStr.substringBefore("_").replace("-", " ")
         val timePart = if (dateStr.contains("_")) {
             val rawTime = dateStr.substringAfter("_")
@@ -215,6 +211,8 @@ fun CallApp() {
                     .focusRequester(focusRequester)
                     .verticalScroll(scrollState),
                 textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 28.sp, fontFamily = FontFamily.Monospace),
+                // 🚨 核心修改点在这里：把光标改成和文字一样的纯色！
+                cursorBrush = SolidColor(textColor),
                 decorationBox = { innerTextField ->
                     if (text.isEmpty() && !isReadOnly) {
                         Text("> Start logging...", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace)
