@@ -22,10 +22,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -39,6 +43,7 @@ import java.util.Locale
 fun CallApp() {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
+    val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
@@ -48,6 +53,9 @@ fun CallApp() {
     var currentFile by remember { mutableStateOf<File?>(null) }
     var isReadOnly by remember { mutableStateOf(true) }
     var text by remember { mutableStateOf("") }
+
+    // 核心标记：只有正在新建的草稿，才能点击屏幕重新唤醒编辑
+    var isDraft by remember { mutableStateOf(false) }
 
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
 
@@ -64,12 +72,14 @@ fun CallApp() {
             currentFile = allLogs.first()
             text = currentFile?.readText() ?: ""
             isReadOnly = true
+            isDraft = false 
         }
     }
 
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
+    // 自动保存
     LaunchedEffect(text) {
         if (!isReadOnly && text.isNotEmpty()) {
             scrollState.animateScrollTo(scrollState.maxValue)
@@ -78,20 +88,46 @@ fun CallApp() {
         }
     }
 
+    // 退出强制保存（彻底解耦 UI 状态）
     DisposableEffect(Unit) {
-        onDispose { if (!isReadOnly && text.isNotEmpty()) currentFile?.writeText(text) }
+        onDispose { 
+            if (currentFile != null && text.isNotEmpty()) {
+                try { currentFile?.writeText(text) } catch (e: Exception) { e.printStackTrace() }
+            }
+        }
     }
 
     LaunchedEffect(isReadOnly) {
         if (!isReadOnly) {
-            delay(100)
+            delay(150) 
             focusRequester.requestFocus()
             keyboardController?.show()
         }
     }
 
-    val displayDate = currentFile?.name?.replace(".md", "")?.substringBefore("_") 
-        ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    // 日期混排：阿拉伯数字 + 隐身时间尾数
+    val displayDateAnnotated = remember(currentFile) {
+        val dateStr = currentFile?.name?.replace(".md", "") ?: SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
+        
+        val datePart = dateStr.substringBefore("_").replace("-", " ")
+        val timePart = if (dateStr.contains("_")) {
+            val rawTime = dateStr.substringAfter("_")
+            if (rawTime.length >= 4) "${rawTime.substring(0, 2)}:${rawTime.substring(2, 4)}" else ""
+        } else {
+            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
+        }
+
+        buildAnnotatedString {
+            withStyle(style = SpanStyle(color = textColor.copy(alpha = 0.5f))) {
+                append("$datePart  ")
+            }
+            if (timePart.isNotEmpty()) {
+                withStyle(style = SpanStyle(color = textColor.copy(alpha = 0.25f), fontSize = 9.sp)) {
+                    append(timePart)
+                }
+            }
+        }
+    }
 
     if (isHistoryOpen) {
         AlertDialog(
@@ -102,7 +138,13 @@ fun CallApp() {
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
                     items(allLogs, key = { it.absolutePath }) { file ->
                         val fileName = file.name.replace(".md", "")
-                        val displayName = if (fileName.contains("_")) fileName.replace("_", " / ") else "$fileName / 00:00:00"
+                        val displayName = if (fileName.contains("_")) {
+                            val datePart = fileName.substringBefore("_").replace("-", " ")
+                            val timePart = fileName.substringAfter("_").take(4)
+                            val formattedTime = if(timePart.length >= 4) "${timePart.substring(0,2)}:${timePart.substring(2,4)}" else timePart
+                            "$datePart  $formattedTime"
+                        } else "$fileName"
+
                         Text(
                             text = displayName,
                             color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f),
@@ -114,6 +156,7 @@ fun CallApp() {
                                     currentFile = file
                                     text = file.readText()
                                     isReadOnly = true
+                                    isDraft = false 
                                     isHistoryOpen = false
                                 }
                                 .padding(vertical = 12.dp)
@@ -140,8 +183,7 @@ fun CallApp() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = displayDate.replace("-", " · "),
-                color = textColor.copy(alpha = 0.4f),
+                text = displayDateAnnotated,
                 fontSize = 11.sp,
                 letterSpacing = 2.sp,
                 fontFamily = FontFamily.Monospace,
@@ -159,7 +201,6 @@ fun CallApp() {
             )
         }
 
-        // 核心修复区：使用 Box 包裹，并在只读时加上一层透明拦截层
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -182,16 +223,15 @@ fun CallApp() {
                 }
             )
             
-            // 这就是那块“透明的玻璃”，只要处于只读状态，它就挡住输入框，接住你的点击！
-            if (isReadOnly) {
+            if (isReadOnly && isDraft) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .clickable(
-                            indication = null, // 没有水波纹，保持极简
+                            indication = null, 
                             interactionSource = remember { MutableInteractionSource() }
                         ) {
-                            isReadOnly = false // 玻璃碎了，唤醒编辑
+                            isReadOnly = false 
                         }
                 )
             }
@@ -216,6 +256,7 @@ fun CallApp() {
                         currentFile = File(context.filesDir, "$timestamp.md")
                         text = ""
                         isReadOnly = false
+                        isDraft = true 
                     }.padding(horizontal = 24.dp, vertical = 8.dp)
                 )
             } else {
@@ -227,7 +268,8 @@ fun CallApp() {
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.clickable {
                         if (text.isNotEmpty()) currentFile?.writeText(text)
-                        isReadOnly = true // 假装锁死
+                        isReadOnly = true 
+                        focusManager.clearFocus() 
                         keyboardController?.hide() 
                     }.padding(horizontal = 24.dp, vertical = 8.dp)
                 )
