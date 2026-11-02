@@ -159,17 +159,11 @@ fun CallApp() {
             )
         }
 
+        // 核心修复区：使用 Box 包裹，并在只读时加上一层透明拦截层
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .weight(1f)
-                .clickable(
-                    enabled = isReadOnly, 
-                    indication = null,
-                    interactionSource = remember { MutableInteractionSource() }
-                ) {
-                    isReadOnly = false 
-                }
         ) {
             BasicTextField(
                 value = text,
@@ -187,6 +181,20 @@ fun CallApp() {
                     innerTextField()
                 }
             )
+            
+            // 这就是那块“透明的玻璃”，只要处于只读状态，它就挡住输入框，接住你的点击！
+            if (isReadOnly) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clickable(
+                            indication = null, // 没有水波纹，保持极简
+                            interactionSource = remember { MutableInteractionSource() }
+                        ) {
+                            isReadOnly = false // 玻璃碎了，唤醒编辑
+                        }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -219,7 +227,7 @@ fun CallApp() {
                     fontFamily = FontFamily.Monospace,
                     modifier = Modifier.clickable {
                         if (text.isNotEmpty()) currentFile?.writeText(text)
-                        isReadOnly = true 
+                        isReadOnly = true // 假装锁死
                         keyboardController?.hide() 
                     }.padding(horizontal = 24.dp, vertical = 8.dp)
                 )
