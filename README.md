@@ -9,6 +9,19 @@
 </div>
 
 ---
+> **A Message from the Developer**
+> 
+> I am max lance, the developer.
+> 
+> Today, I built **Call**. It feels quite special. There is no "Save" button. It auto-saves. Once you exit, it becomes permanently immutable. Files cannot be deleted directly from the device. 
+> 
+> This is the absolute iron law of Call.
+> 
+> Hope you enjoy it. 
+> 
+> *(This very post will remain uneditable forever after I exit.)*
+
+---
 
 ## ✨ Core Features
 
