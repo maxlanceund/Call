@@ -1,5 +1,6 @@
 package com.maxlance.call
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -38,11 +39,11 @@ fun CallApp() {
 
     var isPaperMode by remember { mutableStateOf(true) }
     var isHistoryOpen by remember { mutableStateOf(false) }
-    
+
     var currentFile by remember { mutableStateOf<File?>(null) }
     var isReadOnly by remember { mutableStateOf(true) }
     var text by remember { mutableStateOf("") }
-    
+
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
 
     fun refreshLogs() {
@@ -50,7 +51,6 @@ fun CallApp() {
         allLogs = files?.sortedByDescending { it.lastModified() } ?: emptyList()
     }
 
-    // 初始化
     LaunchedEffect(Unit) {
         refreshLogs()
         if (allLogs.isNotEmpty()) {
@@ -63,7 +63,6 @@ fun CallApp() {
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
-    // 无感保存
     LaunchedEffect(text) {
         if (!isReadOnly && text.isNotEmpty()) {
             delay(1000)
@@ -71,23 +70,21 @@ fun CallApp() {
         }
     }
 
-    // 退出保存
     DisposableEffect(Unit) {
         onDispose { if (!isReadOnly && text.isNotEmpty()) currentFile?.writeText(text) }
     }
 
-    // 核心修复：当切换为编辑模式时，延迟一帧弹出键盘，保证 100% 成功
     LaunchedEffect(isReadOnly) {
         if (!isReadOnly) {
-            delay(100) // 给界面一点时间渲染
+            delay(100)
             focusRequester.requestFocus()
             keyboardController?.show()
         }
     }
 
-    val displayDate = currentFile?.name?.replace(".md", "")?.substringBefore("_") ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
+    val displayDate = currentFile?.name?.replace(".md", "")?.substringBefore("_") 
+        ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
-    // 纯文本历史弹窗（无任何删除按钮）
     if (isHistoryOpen) {
         AlertDialog(
             onDismissRequest = { isHistoryOpen = false },
@@ -98,7 +95,6 @@ fun CallApp() {
                     items(allLogs, key = { it.absolutePath }) { file ->
                         val fileName = file.name.replace(".md", "")
                         val displayName = if (fileName.contains("_")) fileName.replace("_", " / ") else "$fileName / 00:00:00"
-                        
                         Text(
                             text = displayName,
                             color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f),
@@ -121,7 +117,6 @@ fun CallApp() {
         )
     }
 
-    // 主界面
     Column(modifier = Modifier.fillMaxSize().background(bgColor).padding(24.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -131,9 +126,8 @@ fun CallApp() {
                 fontFamily = FontFamily.Monospace,
                 modifier = Modifier.clickable { isHistoryOpen = true }
             )
-            
+
             Row {
-                // 只有在只读状态，才允许新建
                 if (isReadOnly) {
                     TextButton(onClick = {
                         val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
@@ -141,19 +135,32 @@ fun CallApp() {
                         newFile.createNewFile()
                         currentFile = newFile
                         text = ""
-                        isReadOnly = false // 切换状态后，上面的 LaunchedEffect 会自动弹键盘
+                        isReadOnly = false
                         refreshLogs()
                     }) {
                         Text("[ + NEW ]", color = textColor.copy(alpha = 0.8f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                     }
                 }
                 
+                if (text.isNotEmpty()) {
+                    TextButton(onClick = {
+                        val shareIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, text)
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "导出 / 分享日记"))
+                    }) {
+                        Text("[ EXPORT ]", color = textColor.copy(alpha = 0.8f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    }
+                }
+
                 TextButton(onClick = { isPaperMode = !isPaperMode }) {
                     Text(if (isPaperMode) "TERMINAL" else "PAPER", color = textColor.copy(alpha = 0.6f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                 }
             }
         }
-        
+
         Spacer(modifier = Modifier.height(16.dp))
 
         BasicTextField(
@@ -162,7 +169,7 @@ fun CallApp() {
             readOnly = isReadOnly,
             modifier = Modifier
                 .fillMaxSize()
-                .focusRequester(focusRequester), 
+                .focusRequester(focusRequester),
             textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 28.sp, fontFamily = FontFamily.Monospace),
             decorationBox = { innerTextField ->
                 if (text.isEmpty() && !isReadOnly) {
