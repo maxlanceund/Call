@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -21,10 +22,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -56,7 +59,6 @@ fun CallApp() {
     var text by remember { mutableStateOf("") }
     var isDraft by remember { mutableStateOf(false) }
 
-    // 新增：文字大小状态
     var fontSize by remember { mutableStateOf(16.sp) }
 
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
@@ -105,7 +107,6 @@ fun CallApp() {
         }
     }
 
-    // 修复Bug2：把 isPaperMode 加入 remember 的 key，让颜色随明暗模式刷新
     val displayDateAnnotated = remember(currentFile, isPaperMode) {
         val dateStr = currentFile?.name?.replace(".md", "") ?: SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
         val datePart = dateStr.substringBefore("_").replace("-", " ")
@@ -190,7 +191,6 @@ fun CallApp() {
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // 新增：减小字号按钮
                 Text(
                     text = "-",
                     color = textColor.copy(alpha = 0.6f),
@@ -204,7 +204,6 @@ fun CallApp() {
                         .padding(horizontal = 8.dp)
                 )
                 
-                // 新增：增大字号按钮
                 Text(
                     text = "+",
                     color = textColor.copy(alpha = 0.6f),
@@ -239,15 +238,14 @@ fun CallApp() {
                 value = text,
                 onValueChange = { if (!isReadOnly) text = it },
                 readOnly = isReadOnly,
-                // 修复Bug1：移除两侧可能导致光标卡死的隐形留白
                 modifier = Modifier
                     .fillMaxSize()
                     .focusRequester(focusRequester)
                     .verticalScroll(scrollState),
                 textStyle = TextStyle(
                     color = textColor, 
-                    fontSize = fontSize, // 使用动态字号
-                    lineHeight = (fontSize.value * 1.6).sp, // 行高跟着字号动态变，保证排版优雅
+                    fontSize = fontSize,
+                    lineHeight = (fontSize.value * 1.6).sp, 
                     fontFamily = FontFamily.Monospace
                 ),
                 cursorBrush = SolidColor(textColor),
@@ -281,19 +279,20 @@ fun CallApp() {
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (isReadOnly) {
-                Text(
-                    text = "+",
-                    color = textColor.copy(alpha = 0.8f),
-                    fontSize = 20.sp, 
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.clickable {
-                        val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
-                        currentFile = File(context.filesDir, "$timestamp.md")
-                        text = ""
-                        isReadOnly = false
-                        isDraft = true 
-                    }.padding(horizontal = 24.dp, vertical = 8.dp)
+                // 🚨 调用你画的羽毛笔！
+                Image(
+                    painter = painterResource(id = R.drawable.my_pen), 
+                    contentDescription = "New",
+                    colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)), 
+                    modifier = Modifier
+                        .size(24.dp) // 让图片大小适中
+                        .clickable {
+                            val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
+                            currentFile = File(context.filesDir, "$timestamp.md")
+                            text = ""
+                            isReadOnly = false
+                            isDraft = true 
+                        }
                 )
             } else {
                 Text(
