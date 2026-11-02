@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="call_logo_paper.png" width="120" alt="Call Logo">
+  <img src="call_logo_paper.png" width="120" alt="Call Logo" style="border-radius: 22%; box-shadow: 0 4px 14px 0 rgba(0,0,0,0.1);">
   
   # Call
   
