@@ -9,17 +9,9 @@
 </div>
 
 ---
-> **A Message from the Developer**
-> 
-> I am max lance, the developer.
-> 
-> Today, I built **Call**. It feels quite special. There is no "Save" button. It auto-saves. Once you exit, it becomes permanently immutable. Files cannot be deleted directly from the device. 
-> 
-> This is the absolute iron law of Call.
-> 
-> Hope you enjoy it. 
-> 
-> *(This very post will remain uneditable forever after I exit.)*
+<p align="center">
+  <i><small>Built by max lance. Auto-saves. Once you exit, it's permanently immutable. <br>This is the absolute iron law of Call. (This text is now uneditable.)</small></i>
+</p>
 
 ---
 
