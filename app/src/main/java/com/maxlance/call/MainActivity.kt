@@ -37,11 +37,13 @@ fun CallApp() {
     
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
 
+    // 刷新历史列表
     fun refreshLogs() {
         val files = context.filesDir.listFiles { file -> file.extension == "md" }
         allLogs = files?.sortedByDescending { it.lastModified() } ?: emptyList()
     }
 
+    // 页面加载逻辑
     LaunchedEffect(Unit) {
         refreshLogs()
         if (allLogs.isNotEmpty()) {
@@ -54,6 +56,7 @@ fun CallApp() {
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
+    // 无感保存
     LaunchedEffect(text) {
         if (!isReadOnly && text.isNotEmpty()) {
             delay(1000)
@@ -67,32 +70,58 @@ fun CallApp() {
 
     val displayDate = currentFile?.name?.replace(".md", "")?.substringBefore("_") ?: SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date())
 
+    // 历史记录弹窗
     if (isHistoryOpen) {
         AlertDialog(
             onDismissRequest = { isHistoryOpen = false },
             confirmButton = {},
             title = { Text("> LOGS", color = textColor, fontFamily = FontFamily.Monospace) },
             text = {
-                // 核心优化：限制高度，超过就滚动，保持弹窗不撑满屏幕
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
                     items(allLogs) { file ->
                         val fileName = file.name.replace(".md", "")
                         val displayName = if (fileName.contains("_")) fileName.replace("_", " / ") else "$fileName / 00:00:00"
-                        Text(
-                            text = displayName,
-                            color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 14.sp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    currentFile = file
-                                    text = file.readText()
-                                    isReadOnly = true
-                                    isHistoryOpen = false
-                                }
-                                .padding(vertical = 12.dp)
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // 点击文字，进入阅读
+                            Text(
+                                text = displayName,
+                                color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp,
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable {
+                                        currentFile = file
+                                        text = file.readText()
+                                        isReadOnly = true
+                                        isHistoryOpen = false
+                                    }
+                            )
+                            
+                            // 🌟 新增：极简的销毁按钮 [x]
+                            Text(
+                                text = "[x]",
+                                color = textColor.copy(alpha = 0.3f),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp,
+                                modifier = Modifier
+                                    .clickable {
+                                        file.delete() // 物理删除文件
+                                        refreshLogs()
+                                        // 如果删的是当前正在看的，或者全删光了，清空屏幕
+                                        if (currentFile == file) {
+                                            currentFile = allLogs.firstOrNull()
+                                            text = currentFile?.readText() ?: ""
+                                            isReadOnly = true
+                                        }
+                                    }
+                                    .padding(start = 16.dp, end = 8.dp)
+                            )
+                        }
                     }
                 }
             },
@@ -100,8 +129,11 @@ fun CallApp() {
         )
     }
 
+    // 主界面
     Column(modifier = Modifier.fillMaxSize().background(bgColor).padding(24.dp)) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+            
+            // 点击日期，打开历史列表
             Text(
                 text = displayDate,
                 color = textColor.copy(alpha = 0.6f),
@@ -149,7 +181,7 @@ fun CallApp() {
     }
 }
 
-class MainActivity : ComponentActivity() {
+class ComponentActivity : androidx.activity.ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { CallApp() }
