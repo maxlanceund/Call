@@ -119,7 +119,6 @@ fun CallApp() {
         )
     }
 
-    // 关键修复：外层不再滚动，只负责处理键盘避让 (imePadding)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -127,7 +126,6 @@ fun CallApp() {
             .imePadding() 
             .padding(24.dp)
     ) {
-        // 顶部固定区域（不会跟着文字滚走）
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = displayDate,
@@ -173,16 +171,15 @@ fun CallApp() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 关键修复：给输入框 weight(1f)，让它占据剩余空间，内部自动处理滚动
         BasicTextField(
             value = text,
             onValueChange = { if (!isReadOnly) text = it },
             readOnly = isReadOnly,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) // 占据剩余所有空间，让光标一直往上顶
+                .weight(1f) 
                 .focusRequester(focusRequester)
-                .verticalScroll(rememberScrollState()), // 加在这里，让输入框自己滚，不连累顶部菜单
+                .verticalScroll(rememberScrollState()),
             textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 28.sp, fontFamily = FontFamily.Monospace),
             decorationBox = { innerTextField ->
                 if (text.isEmpty() && !isReadOnly) {
