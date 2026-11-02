@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -25,7 +24,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -40,7 +38,6 @@ fun CallApp() {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
-    val scrollState = rememberScrollState()
 
     var isPaperMode by remember { mutableStateOf(true) }
     var isHistoryOpen by remember { mutableStateOf(false) }
@@ -122,8 +119,15 @@ fun CallApp() {
         )
     }
 
-    // 核心修复：整个页面应用 imePadding，让键盘顶起整个布局
-    Column(modifier = Modifier.fillMaxSize().background(bgColor).padding(24.dp).imePadding()) {
+    // 关键修复：外层不再滚动，只负责处理键盘避让 (imePadding)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(bgColor)
+            .imePadding() 
+            .padding(24.dp)
+    ) {
+        // 顶部固定区域（不会跟着文字滚走）
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = displayDate,
@@ -169,16 +173,16 @@ fun CallApp() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // 修复：移除 fillMaxSize，给底部留出空间，并加上 weight(1f) 保证占满剩余空间
+        // 关键修复：给输入框 weight(1f)，让它占据剩余空间，内部自动处理滚动
         BasicTextField(
             value = text,
             onValueChange = { if (!isReadOnly) text = it },
             readOnly = isReadOnly,
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f) 
-                .verticalScroll(scrollState)
-                .focusRequester(focusRequester),
+                .weight(1f) // 占据剩余所有空间，让光标一直往上顶
+                .focusRequester(focusRequester)
+                .verticalScroll(rememberScrollState()), // 加在这里，让输入框自己滚，不连累顶部菜单
             textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 28.sp, fontFamily = FontFamily.Monospace),
             decorationBox = { innerTextField ->
                 if (text.isEmpty() && !isReadOnly) {
