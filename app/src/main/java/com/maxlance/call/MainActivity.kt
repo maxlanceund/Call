@@ -25,6 +25,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -52,7 +53,9 @@ fun CallApp() {
 
     fun refreshLogs() {
         val files = context.filesDir.listFiles { file -> file.extension == "md" }
-        allLogs = files?.sortedByDescending { it.lastModified() } ?: emptyList()
+        files?.forEach { if (it.length() == 0L) it.delete() } 
+        val validFiles = context.filesDir.listFiles { file -> file.extension == "md" }
+        allLogs = validFiles?.sortedByDescending { it.lastModified() } ?: emptyList()
     }
 
     LaunchedEffect(Unit) {
@@ -94,7 +97,7 @@ fun CallApp() {
         AlertDialog(
             onDismissRequest = { isHistoryOpen = false },
             confirmButton = {},
-            title = { Text("> LOGS", color = textColor, fontFamily = FontFamily.Monospace) },
+            title = { Text("> L O G S", color = textColor, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
             text = {
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
                     items(allLogs, key = { it.absolutePath }) { file ->
@@ -129,55 +132,32 @@ fun CallApp() {
             .imePadding() 
             .padding(24.dp)
     ) {
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text(
-                text = displayDate,
-                color = textColor.copy(alpha = 0.6f),
-                fontSize = 12.sp,
+                text = displayDate.replace("-", " · "),
+                color = textColor.copy(alpha = 0.4f),
+                fontSize = 11.sp,
+                letterSpacing = 2.sp,
                 fontFamily = FontFamily.Monospace,
                 modifier = Modifier.clickable { isHistoryOpen = true }
             )
 
-            Row {
-                if (isReadOnly) {
-                    TextButton(onClick = {
-                        val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
-                        currentFile = File(context.filesDir, "$timestamp.md")
-                        text = ""
-                        isReadOnly = false
-                    }) {
-                        Text("[ + NEW ]", color = textColor.copy(alpha = 0.8f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                    }
-                } else {
-                    TextButton(onClick = {
-                        if (text.isNotEmpty()) currentFile?.writeText(text)
-                        isReadOnly = true 
-                        keyboardController?.hide() 
-                    }) {
-                        Text("[ SAVE ]", color = Color(0xFF58A6FF), fontSize = 12.sp, fontFamily = FontFamily.Monospace) 
-                    }
-                }
-                
-                if (text.isNotEmpty()) {
-                    TextButton(onClick = {
-                        val shareIntent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, text)
-                            type = "text/plain"
-                        }
-                        context.startActivity(Intent.createChooser(shareIntent, "导出 / 分享日记"))
-                    }) {
-                        Text("[ EXPORT ]", color = textColor.copy(alpha = 0.8f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                    }
-                }
-
-                TextButton(onClick = { isPaperMode = !isPaperMode }) {
-                    Text(if (isPaperMode) "TERM" else "PAPER", color = textColor.copy(alpha = 0.6f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
-                }
-            }
+            Text(
+                text = "◐",
+                color = textColor.copy(alpha = 0.6f),
+                fontSize = 18.sp,
+                fontFamily = FontFamily.Monospace,
+                modifier = Modifier
+                    .clickable { isPaperMode = !isPaperMode }
+                    .padding(start = 16.dp, bottom = 4.dp)
+            )
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         Box(
             modifier = Modifier
@@ -185,7 +165,7 @@ fun CallApp() {
                 .weight(1f)
                 .clickable(
                     enabled = isReadOnly, 
-                    indication = null, 
+                    indication = null,
                     interactionSource = remember { MutableInteractionSource() }
                 ) {
                     isReadOnly = false 
@@ -207,6 +187,63 @@ fun CallApp() {
                     innerTextField()
                 }
             )
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isReadOnly) {
+                Text(
+                    text = "+",
+                    color = textColor.copy(alpha = 0.8f),
+                    fontSize = 20.sp, 
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.clickable {
+                        val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
+                        currentFile = File(context.filesDir, "$timestamp.md")
+                        text = ""
+                        isReadOnly = false
+                    }.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+            } else {
+                Text(
+                    text = "Ξ",
+                    color = Color(0xFF58A6FF),
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.clickable {
+                        if (text.isNotEmpty()) currentFile?.writeText(text)
+                        isReadOnly = true 
+                        keyboardController?.hide() 
+                    }.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+            }
+
+            if (text.isNotEmpty()) {
+                Text("·", color = textColor.copy(alpha = 0.3f), fontSize = 18.sp, fontFamily = FontFamily.Monospace)
+                
+                Text(
+                    text = "↑",
+                    color = textColor.copy(alpha = 0.8f),
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.clickable {
+                        val shareIntent = Intent().apply {
+                            action = Intent.ACTION_SEND
+                            putExtra(Intent.EXTRA_TEXT, text)
+                            type = "text/plain"
+                        }
+                        context.startActivity(Intent.createChooser(shareIntent, "导出 / 分享日记"))
+                    }.padding(horizontal = 24.dp, vertical = 8.dp)
+                )
+            }
         }
     }
 }
