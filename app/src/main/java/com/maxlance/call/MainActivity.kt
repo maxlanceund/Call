@@ -12,6 +12,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -28,12 +29,13 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
+// 💥 核心修复：加上实验性 API 的通行证
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CallApp() {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     
-    // 🌟 核心新增：焦点请求器
     val focusRequester = remember { FocusRequester() }
 
     var isPaperMode by remember { mutableStateOf(true) }
@@ -159,7 +161,6 @@ fun CallApp() {
                         isReadOnly = false
                         refreshLogs()
                         
-                        // 🌟 核心修复：强制输入框获取焦点，并召唤键盘
                         focusRequester.requestFocus()
                         keyboardController?.show()
                     }) {
@@ -179,7 +180,6 @@ fun CallApp() {
             value = text,
             onValueChange = { if (!isReadOnly) text = it },
             readOnly = isReadOnly,
-            // 🌟 绑定焦点请求器
             modifier = Modifier
                 .fillMaxSize()
                 .focusRequester(focusRequester), 
