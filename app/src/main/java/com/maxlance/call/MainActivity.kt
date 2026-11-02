@@ -13,8 +13,11 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -28,6 +31,11 @@ import java.util.Locale
 @Composable
 fun CallApp() {
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    
+    // 🌟 核心新增：焦点请求器
+    val focusRequester = remember { FocusRequester() }
+
     var isPaperMode by remember { mutableStateOf(true) }
     var isHistoryOpen by remember { mutableStateOf(false) }
     
@@ -74,7 +82,6 @@ fun CallApp() {
             title = { Text("> LOGS", color = textColor, fontFamily = FontFamily.Monospace) },
             text = {
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
-                    // 💥 核心修复1：加上 key，防止 Compose 在删除时发生节点错乱
                     items(allLogs, key = { it.absolutePath }) { file ->
                         val fileName = file.name.replace(".md", "")
                         val displayName = if (fileName.contains("_")) fileName.replace("_", " / ") else "$fileName / 00:00:00"
@@ -105,12 +112,10 @@ fun CallApp() {
                                 fontSize = 14.sp,
                                 modifier = Modifier
                                     .clickable {
-                                        // 💥 核心修复2：安全删除逻辑
                                         val wasCurrent = (currentFile == file)
                                         file.delete()
                                         refreshLogs()
                                         
-                                        // 如果删掉的是当前正在看的，必须清空状态，防止去读已经消失的文件
                                         if (wasCurrent) {
                                             if (allLogs.isEmpty()) {
                                                 currentFile = null
@@ -144,7 +149,6 @@ fun CallApp() {
             )
             
             Row {
-                // 只有当存在文件，且当前不是输入状态时，才显示新建
                 if (isReadOnly) {
                     TextButton(onClick = {
                         val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
@@ -154,6 +158,10 @@ fun CallApp() {
                         text = ""
                         isReadOnly = false
                         refreshLogs()
+                        
+                        // 🌟 核心修复：强制输入框获取焦点，并召唤键盘
+                        focusRequester.requestFocus()
+                        keyboardController?.show()
                     }) {
                         Text("[ + NEW ]", color = textColor.copy(alpha = 0.8f), fontSize = 12.sp, fontFamily = FontFamily.Monospace)
                     }
@@ -171,7 +179,10 @@ fun CallApp() {
             value = text,
             onValueChange = { if (!isReadOnly) text = it },
             readOnly = isReadOnly,
-            modifier = Modifier.fillMaxSize(),
+            // 🌟 绑定焦点请求器
+            modifier = Modifier
+                .fillMaxSize()
+                .focusRequester(focusRequester), 
             textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 28.sp, fontFamily = FontFamily.Monospace),
             decorationBox = { innerTextField ->
                 if (text.isEmpty() && !isReadOnly) {
