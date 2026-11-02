@@ -9,7 +9,9 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -36,6 +38,7 @@ fun CallApp() {
     val context = LocalContext.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusRequester = remember { FocusRequester() }
+    val scrollState = rememberScrollState()
 
     var isPaperMode by remember { mutableStateOf(true) }
     var isHistoryOpen by remember { mutableStateOf(false) }
@@ -117,7 +120,8 @@ fun CallApp() {
         )
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(bgColor).padding(24.dp)) {
+    // 注意这里加了 .imePadding()，防止键盘挡住文字
+    Column(modifier = Modifier.fillMaxSize().background(bgColor).padding(24.dp).imePadding()) {
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = displayDate,
@@ -163,12 +167,14 @@ fun CallApp() {
 
         Spacer(modifier = Modifier.height(16.dp))
 
+        // 注意这里加了 .verticalScroll(scrollState)，可以无限往下滚
         BasicTextField(
             value = text,
             onValueChange = { if (!isReadOnly) text = it },
             readOnly = isReadOnly,
             modifier = Modifier
                 .fillMaxSize()
+                .verticalScroll(scrollState)
                 .focusRequester(focusRequester),
             textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 28.sp, fontFamily = FontFamily.Monospace),
             decorationBox = { innerTextField ->
