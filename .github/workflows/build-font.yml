@@ -1,29 +1,18 @@
 name: Build Romanized Chinese Font
-on:
-  push:
-    branches: [ "main" ]
-  workflow_dispatch: 
-
+on: [push, workflow_dispatch]
 jobs:
   build-font:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-    - name: Set up Python
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.10'
-    - name: Install dependencies
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with: { python-version: '3.10' }
+    - name: Install & Run
       run: |
         pip install fonttools brotli
-        # 换成纯正静态 TTF
         curl -L -o SourceHanSans.ttf "https://github.com/google/fonts/raw/main/ofl/zcoolxiaowei/ZCOOLXiaoWei-Regular.ttf"
-    - name: Run Font Romanizer
-      run: python romanize_font.py
-    - name: Upload Generated Font
-      uses: actions/upload-artifact@v4
+        python romanize_font.py
+    - uses: actions/upload-artifact@v4
       with:
         name: Max-Roman-Font
         path: Max_Roman_Stone.ttf
