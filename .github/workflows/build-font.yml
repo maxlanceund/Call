@@ -1,5 +1,4 @@
 name: Build Romanized Chinese Font
-
 on:
   push:
     branches: [ "main" ]
@@ -9,25 +8,19 @@ jobs:
   build-font:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.10'
-
     - name: Install dependencies
       run: |
         pip install fonttools brotli
-        # 下载一个开源的中文字体（这里用较小的测试版，避免下载太慢）
         curl -L -o SourceHanSans.ttf "https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf"
-
     - name: Run Font Romanizer
       run: python romanize_font.py
-
     - name: Upload Generated Font
       uses: actions/upload-artifact@v4
       with:
