@@ -12,14 +12,11 @@ jobs:
     - name: Install & Run
       run: |
         pip install fonttools
-        # 🚨 换成 jsDelivr 加速源，下载极稳的站酷小薇体
-        curl -fL -o SourceHanSerif.ttf "https://fastly.jsdelivr.net/gh/google/fonts@main/ofl/zcoolxiaowei/ZCOOLXiaoWei-Regular.ttf"
-        
-        # 打印一下文件大小，让你知道到底下没下来
-        echo "字体文件大小:"
+        # 只检查本地文件，不联网下载
+        echo "云端已收到本地字体，大小如下："
         ls -lh SourceHanSerif.ttf
         
-        # 运行造字脚本
+        # 直接运行雕刻脚本
         python romanize_font.py
         
     - uses: actions/upload-artifact@v4
