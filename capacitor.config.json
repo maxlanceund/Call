@@ -1,0 +1,6 @@
+{
+  "appId": "com.max.geometryfps",
+  "appName": "MaxFPS",
+  "webDir": "www",
+  "bundledWebRuntime": false
+}

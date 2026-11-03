@@ -1,0 +1,234 @@
+build-font	Set up job	﻿2026-11-03T14:48:32.9270652Z Current runner version: '2.338.2'
+build-font	Set up job	2026-11-03T14:48:32.9292642Z ##[group]Runner Image Provisioner
+build-font	Set up job	2026-11-03T14:48:32.9293434Z Hosted Compute Agent
+build-font	Set up job	2026-11-03T14:48:32.9293948Z Version: 20261021.618
+build-font	Set up job	2026-11-03T14:48:32.9294552Z Commit: 21505ad2541d5be6135ed84fc33697146cf75b8e
+build-font	Set up job	2026-11-03T14:48:32.9295170Z Build Date: 2026-10-21T00:45:21Z
+build-font	Set up job	2026-11-03T14:48:32.9295767Z Worker ID: {779da9a8-ba24-4bad-bfb5-b99e7802102b}
+build-font	Set up job	2026-11-03T14:48:32.9296470Z Region: westus3
+build-font	Set up job	2026-11-03T14:48:32.9296982Z Cloud: Azure
+build-font	Set up job	2026-11-03T14:48:32.9297483Z ##[endgroup]
+build-font	Set up job	2026-11-03T14:48:32.9298636Z ##[group]Operating System
+build-font	Set up job	2026-11-03T14:48:32.9299168Z Ubuntu
+build-font	Set up job	2026-11-03T14:48:32.9299742Z 24.04.5
+build-font	Set up job	2026-11-03T14:48:32.9300211Z LTS
+build-font	Set up job	2026-11-03T14:48:32.9300691Z ##[endgroup]
+build-font	Set up job	2026-11-03T14:48:32.9301338Z ##[group]Runner Image
+build-font	Set up job	2026-11-03T14:48:32.9301870Z Image: ubuntu-24.04
+build-font	Set up job	2026-11-03T14:48:32.9302437Z Version: 20261025.353.1
+build-font	Set up job	2026-11-03T14:48:32.9303332Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261025.353/images/ubuntu/Ubuntu2404-Readme.md
+build-font	Set up job	2026-11-03T14:48:32.9304857Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261025.353
+build-font	Set up job	2026-11-03T14:48:32.9305679Z ##[endgroup]
+build-font	Set up job	2026-11-03T14:48:32.9306796Z ##[group]GITHUB_TOKEN Permissions
+build-font	Set up job	2026-11-03T14:48:32.9308306Z Contents: read
+build-font	Set up job	2026-11-03T14:48:32.9309313Z Metadata: read
+build-font	Set up job	2026-11-03T14:48:32.9309868Z Packages: read
+build-font	Set up job	2026-11-03T14:48:32.9310414Z ##[endgroup]
+build-font	Set up job	2026-11-03T14:48:32.9312355Z Secret source: Actions
+build-font	Set up job	2026-11-03T14:48:32.9313134Z Cache mode: write
+build-font	Set up job	2026-11-03T14:48:32.9313910Z Prepare workflow directory
+build-font	Set up job	2026-11-03T14:48:32.9584977Z Prepare all required actions
+build-font	Set up job	2026-11-03T14:48:32.9624879Z Getting action download info
+build-font	Set up job	2026-11-03T14:48:33.2952407Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+build-font	Set up job	2026-11-03T14:48:33.4438874Z Download action repository 'actions/setup-python@v5' (SHA:a26af69be951a213d495a4c3e4e4022e16d87065)
+build-font	Set up job	2026-11-03T14:48:33.5754332Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+build-font	Set up job	2026-11-03T14:48:33.7933452Z Complete job name: build-font
+build-font	Checkout repository	﻿2026-11-03T14:48:33.8622681Z ##[group]Run actions/checkout@v4
+build-font	Checkout repository	2026-11-03T14:48:33.8623393Z with:
+build-font	Checkout repository	2026-11-03T14:48:33.8623762Z   repository: maxlanceund/Call
+build-font	Checkout repository	2026-11-03T14:48:33.8627074Z   token: ***
+build-font	Checkout repository	2026-11-03T14:48:33.8627432Z   ssh-strict: true
+build-font	Checkout repository	2026-11-03T14:48:33.8627790Z   ssh-user: git
+build-font	Checkout repository	2026-11-03T14:48:33.8628150Z   persist-credentials: true
+build-font	Checkout repository	2026-11-03T14:48:33.8628547Z   clean: true
+build-font	Checkout repository	2026-11-03T14:48:33.8628907Z   sparse-checkout-cone-mode: true
+build-font	Checkout repository	2026-11-03T14:48:33.8629331Z   fetch-depth: 1
+build-font	Checkout repository	2026-11-03T14:48:33.8629682Z   fetch-tags: false
+build-font	Checkout repository	2026-11-03T14:48:33.8630045Z   show-progress: true
+build-font	Checkout repository	2026-11-03T14:48:33.8630404Z   lfs: false
+build-font	Checkout repository	2026-11-03T14:48:33.8630735Z   submodules: false
+build-font	Checkout repository	2026-11-03T14:48:33.8631236Z   set-safe-directory: true
+build-font	Checkout repository	2026-11-03T14:48:33.8631645Z   allow-unsafe-pr-checkout: false
+build-font	Checkout repository	2026-11-03T14:48:33.8632210Z ##[endgroup]
+build-font	Checkout repository	2026-11-03T14:48:34.1183902Z Syncing repository: maxlanceund/Call
+build-font	Checkout repository	2026-11-03T14:48:34.1185849Z ##[group]Getting Git version info
+build-font	Checkout repository	2026-11-03T14:48:34.1186404Z Working directory is '/home/runner/work/Call/Call'
+build-font	Checkout repository	2026-11-03T14:48:34.1187441Z [command]/usr/bin/git version
+build-font	Checkout repository	2026-11-03T14:48:34.1260362Z git version 2.56.0
+build-font	Checkout repository	2026-11-03T14:48:34.1279346Z ##[endgroup]
+build-font	Checkout repository	2026-11-03T14:48:34.1312521Z Temporarily overriding HOME='/home/runner/work/_temp/c36f7b6b-7ebf-4f3c-92fb-4ecadf1e007e' before making global git config changes
+build-font	Checkout repository	2026-11-03T14:48:34.1322135Z Adding repository directory to the temporary git global config as a safe directory
+build-font	Checkout repository	2026-11-03T14:48:34.1323695Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Call/Call
+build-font	Checkout repository	2026-11-03T14:48:34.1345162Z Deleting the contents of '/home/runner/work/Call/Call'
+build-font	Checkout repository	2026-11-03T14:48:34.1348989Z ##[group]Initializing the repository
+build-font	Checkout repository	2026-11-03T14:48:34.1352927Z [command]/usr/bin/git init /home/runner/work/Call/Call
+build-font	Checkout repository	2026-11-03T14:48:34.1444982Z hint: Using 'master' as the name for the initial branch. This default branch name
+build-font	Checkout repository	2026-11-03T14:48:34.1446704Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+build-font	Checkout repository	2026-11-03T14:48:34.1447886Z hint: to use in all of your new repositories, which will suppress this warning,
+build-font	Checkout repository	2026-11-03T14:48:34.1448794Z hint: call:
+build-font	Checkout repository	2026-11-03T14:48:34.1449280Z hint:
+build-font	Checkout repository	2026-11-03T14:48:34.1449901Z hint: 	git config --global init.defaultBranch <name>
+build-font	Checkout repository	2026-11-03T14:48:34.1450656Z hint:
+build-font	Checkout repository	2026-11-03T14:48:34.1451499Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+build-font	Checkout repository	2026-11-03T14:48:34.1452651Z hint: 'development'. The just-created branch can be renamed via this command:
+build-font	Checkout repository	2026-11-03T14:48:34.1453577Z hint:
+build-font	Checkout repository	2026-11-03T14:48:34.1454076Z hint: 	git branch -m <name>
+build-font	Checkout repository	2026-11-03T14:48:34.1454648Z hint:
+build-font	Checkout repository	2026-11-03T14:48:34.1455878Z hint: Disable this message with "git config set advice.defaultBranchName false"
+build-font	Checkout repository	2026-11-03T14:48:34.1458199Z Initialized empty Git repository in /home/runner/work/Call/Call/.git/
+build-font	Checkout repository	2026-11-03T14:48:34.1464828Z [command]/usr/bin/git remote add origin https://github.com/maxlanceund/Call
+build-font	Checkout repository	2026-11-03T14:48:34.1507903Z ##[endgroup]
+build-font	Checkout repository	2026-11-03T14:48:34.1508865Z ##[group]Disabling automatic garbage collection
+build-font	Checkout repository	2026-11-03T14:48:34.1511570Z [command]/usr/bin/git config --local gc.auto 0
+build-font	Checkout repository	2026-11-03T14:48:34.1542961Z ##[endgroup]
+build-font	Checkout repository	2026-11-03T14:48:34.1543858Z ##[group]Setting up auth
+build-font	Checkout repository	2026-11-03T14:48:34.1548279Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+build-font	Checkout repository	2026-11-03T14:48:34.1583722Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+build-font	Checkout repository	2026-11-03T14:48:34.1927506Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+build-font	Checkout repository	2026-11-03T14:48:34.1984251Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+build-font	Checkout repository	2026-11-03T14:48:34.2205752Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+build-font	Checkout repository	2026-11-03T14:48:34.2245697Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+build-font	Checkout repository	2026-11-03T14:48:34.2456464Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+build-font	Checkout repository	2026-11-03T14:48:34.2500240Z ##[endgroup]
+build-font	Checkout repository	2026-11-03T14:48:34.2501165Z ##[group]Fetching the repository
+build-font	Checkout repository	2026-11-03T14:48:34.2511618Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +910ed4ddd1a0b2757a8935750aea1a11a3233174:refs/remotes/origin/main
+build-font	Checkout repository	2026-11-03T14:48:34.7399053Z From https://github.com/maxlanceund/Call
+build-font	Checkout repository	2026-11-03T14:48:34.7400734Z  * [new ref]         910ed4ddd1a0b2757a8935750aea1a11a3233174 -> origin/main
+build-font	Checkout repository	2026-11-03T14:48:34.7403655Z ##[endgroup]
+build-font	Checkout repository	2026-11-03T14:48:34.7404634Z ##[group]Determining the checkout info
+build-font	Checkout repository	2026-11-03T14:48:34.7405807Z ##[endgroup]
+build-font	Checkout repository	2026-11-03T14:48:34.7409848Z [command]/usr/bin/git sparse-checkout disable
+build-font	Checkout repository	2026-11-03T14:48:34.7467257Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+build-font	Checkout repository	2026-11-03T14:48:34.7506716Z ##[group]Checking out the ref
+build-font	Checkout repository	2026-11-03T14:48:34.7517788Z [command]/usr/bin/git checkout --progress --force -B main refs/remotes/origin/main
+build-font	Checkout repository	2026-11-03T14:48:34.7599070Z Switched to a new branch 'main'
+build-font	Checkout repository	2026-11-03T14:48:34.7603599Z branch 'main' set up to track 'origin/main'.
+build-font	Checkout repository	2026-11-03T14:48:34.7609394Z ##[endgroup]
+build-font	Checkout repository	2026-11-03T14:48:34.7653377Z [command]/usr/bin/git log -1 --format=%H
+build-font	Checkout repository	2026-11-03T14:48:34.7683873Z 910ed4ddd1a0b2757a8935750aea1a11a3233174
+build-font	Set up Python	﻿2026-11-03T14:48:34.8004436Z ##[group]Run actions/setup-python@v5
+build-font	Set up Python	2026-11-03T14:48:34.8005430Z with:
+build-font	Set up Python	2026-11-03T14:48:34.8006077Z   python-version: 3.10
+build-font	Set up Python	2026-11-03T14:48:34.8006831Z   check-latest: false
+build-font	Set up Python	2026-11-03T14:48:34.8015076Z   token: ***
+build-font	Set up Python	2026-11-03T14:48:34.8015792Z   update-environment: true
+build-font	Set up Python	2026-11-03T14:48:34.8016801Z   allow-prereleases: false
+build-font	Set up Python	2026-11-03T14:48:34.8017606Z   freethreaded: false
+build-font	Set up Python	2026-11-03T14:48:34.8018324Z ##[endgroup]
+build-font	Set up Python	2026-11-03T14:48:34.9137932Z ##[group]Installed versions
+build-font	Set up Python	2026-11-03T14:48:34.9203783Z Version 3.10 was not found in the local cache
+build-font	Set up Python	2026-11-03T14:48:34.9350464Z (node:2101) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+build-font	Set up Python	2026-11-03T14:48:34.9353590Z (Use `node --trace-deprecation ...` to show where the warning was created)
+build-font	Set up Python	2026-11-03T14:48:36.1759457Z Version 3.10 is available for downloading
+build-font	Set up Python	2026-11-03T14:48:36.1760190Z Download from "https://github.com/actions/python-versions/releases/download/3.10.22-36876129702/python-3.10.22-linux-24.04-x64.tar.gz"
+build-font	Set up Python	2026-11-03T14:48:36.7606206Z Extract downloaded archive
+build-font	Set up Python	2026-11-03T14:48:36.7737996Z [command]/usr/bin/tar xz --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/36d3d50d-00a1-4116-b483-3f0f276e8cb0 -f /home/runner/work/_temp/0a5e132c-6dc0-4d30-a12e-4cd4d379089b
+build-font	Set up Python	2026-11-03T14:48:37.9095803Z Execute installation script
+build-font	Set up Python	2026-11-03T14:48:37.9194147Z Check if Python hostedtoolcache folder exist...
+build-font	Set up Python	2026-11-03T14:48:37.9195172Z Create Python 3.10.22 folder
+build-font	Set up Python	2026-11-03T14:48:37.9206027Z Copy Python binaries to hostedtoolcache folder
+build-font	Set up Python	2026-11-03T14:48:38.2726250Z Create additional symlinks (Required for the UsePythonVersion Azure Pipelines task and the setup-python GitHub Action)
+build-font	Set up Python	2026-11-03T14:48:38.2764035Z Upgrading pip...
+build-font	Set up Python	2026-11-03T14:48:40.1584398Z Collecting pip
+build-font	Set up Python	2026-11-03T14:48:40.1884228Z Downloading pip-26.3-py3-none-any.whl (2.0 MB)
+build-font	Set up Python	2026-11-03T14:48:40.2268840Z ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 2.0/2.0 MB 54.2 MB/s eta 0:00:00
+build-font	Set up Python	2026-11-03T14:48:40.2269224Z 
+build-font	Set up Python	2026-11-03T14:48:40.2741649Z Installing collected packages: pip
+build-font	Set up Python	2026-11-03T14:48:40.2742261Z Attempting uninstall: pip
+build-font	Set up Python	2026-11-03T14:48:40.2747018Z Found existing installation: pip 23.0.1
+build-font	Set up Python	2026-11-03T14:48:40.4072115Z Uninstalling pip-23.0.1:
+build-font	Set up Python	2026-11-03T14:48:40.4127337Z Successfully uninstalled pip-23.0.1
+build-font	Set up Python	2026-11-03T14:48:41.1547387Z Successfully installed pip-26.3
+build-font	Set up Python	2026-11-03T14:48:41.2082137Z Create complete file
+build-font	Set up Python	2026-11-03T14:48:41.2145155Z Successfully set up CPython (3.10.22)
+build-font	Set up Python	2026-11-03T14:48:41.2146252Z ##[endgroup]
+build-font	Install dependencies	﻿2026-11-03T14:48:41.2330510Z ##[group]Run pip install fonttools brotli
+build-font	Install dependencies	2026-11-03T14:48:41.2330870Z ^[[36;1mpip install fonttools brotli^[[0m
+build-font	Install dependencies	2026-11-03T14:48:41.2331365Z ^[[36;1m# 🚨 核心修复：下载 TTF 格式的思源黑体，而不是 OTF^[[0m
+build-font	Install dependencies	2026-11-03T14:48:41.2331867Z ^[[36;1mcurl -L -o SourceHanSans.ttf "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"^[[0m
+build-font	Install dependencies	2026-11-03T14:48:41.2354809Z shell: /usr/bin/bash -e {0}
+build-font	Install dependencies	2026-11-03T14:48:41.2355042Z env:
+build-font	Install dependencies	2026-11-03T14:48:41.2355271Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.22/x64
+build-font	Install dependencies	2026-11-03T14:48:41.2355638Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.22/x64/lib/pkgconfig
+build-font	Install dependencies	2026-11-03T14:48:41.2355983Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.22/x64
+build-font	Install dependencies	2026-11-03T14:48:41.2356303Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.22/x64
+build-font	Install dependencies	2026-11-03T14:48:41.2356636Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.22/x64
+build-font	Install dependencies	2026-11-03T14:48:41.2356952Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.22/x64/lib
+build-font	Install dependencies	2026-11-03T14:48:41.2357212Z ##[endgroup]
+build-font	Install dependencies	2026-11-03T14:48:41.8241677Z Collecting fonttools
+build-font	Install dependencies	2026-11-03T14:48:41.8806911Z   Downloading fonttools-4.65.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (125 kB)
+build-font	Install dependencies	2026-11-03T14:48:41.9505791Z Collecting brotli
+build-font	Install dependencies	2026-11-03T14:48:41.9613673Z   Downloading brotli-1.2.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl.metadata (6.1 kB)
+build-font	Install dependencies	2026-11-03T14:48:41.9740771Z Downloading fonttools-4.65.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (5.3 MB)
+build-font	Install dependencies	2026-11-03T14:48:42.2568121Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 5.3/5.3 MB 19.6 MB/s  0:00:00
+build-font	Install dependencies	2026-11-03T14:48:42.2673792Z Downloading brotli-1.2.1-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl (1.4 MB)
+build-font	Install dependencies	2026-11-03T14:48:42.3032557Z    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ 1.4/1.4 MB 38.6 MB/s  0:00:00
+build-font	Install dependencies	2026-11-03T14:48:42.3556938Z Installing collected packages: brotli, fonttools
+build-font	Install dependencies	2026-11-03T14:48:43.0194409Z 
+build-font	Install dependencies	2026-11-03T14:48:43.0203169Z Successfully installed brotli-1.2.1 fonttools-4.65.0
+build-font	Install dependencies	2026-11-03T14:48:43.0802225Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+build-font	Install dependencies	2026-11-03T14:48:43.0802726Z                                  Dload  Upload   Total   Spent    Left  Speed
+build-font	Install dependencies	2026-11-03T14:48:43.0802955Z 
+build-font	Install dependencies	2026-11-03T14:48:43.3539453Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+build-font	Install dependencies	2026-11-03T14:48:43.3540038Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+build-font	Install dependencies	2026-11-03T14:48:43.5364543Z 
+build-font	Install dependencies	2026-11-03T14:48:43.5397054Z  89 16.9M   89 15.0M    0     0  33.0M      0 --:--:-- --:--:-- --:--:-- 33.0M
+build-font	Install dependencies	2026-11-03T14:48:43.5397636Z 100 16.9M  100 16.9M    0     0  36.8M      0 --:--:-- --:--:-- --:--:--  619M
+build-font	Run Font Romanizer	﻿2026-11-03T14:48:43.5470663Z ##[group]Run python romanize_font.py
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5470958Z ^[[36;1mpython romanize_font.py^[[0m
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5490036Z shell: /usr/bin/bash -e {0}
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5490246Z env:
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5490477Z   pythonLocation: /opt/hostedtoolcache/Python/3.10.22/x64
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5490824Z   PKG_CONFIG_PATH: /opt/hostedtoolcache/Python/3.10.22/x64/lib/pkgconfig
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5491361Z   Python_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.22/x64
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5491661Z   Python2_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.22/x64
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5491961Z   Python3_ROOT_DIR: /opt/hostedtoolcache/Python/3.10.22/x64
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5492257Z   LD_LIBRARY_PATH: /opt/hostedtoolcache/Python/3.10.22/x64/lib
+build-font	Run Font Romanizer	2026-11-03T14:48:43.5492515Z ##[endgroup]
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7908081Z Traceback (most recent call last):
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7916088Z   File "/home/runner/work/Call/Call/romanize_font.py", line 45, in <module>
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7916784Z     romanize("SourceHanSans.ttf", "Max_Roman_Stone.ttf")
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7917530Z   File "/home/runner/work/Call/Call/romanize_font.py", line 42, in romanize
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7918077Z     font.save(output_path)
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7918788Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/ttFont.py", line 368, in save
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7919554Z     writer_reordersTables = self._save(tmp)
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7920311Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/ttFont.py", line 423, in _save
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7921240Z     self._writeTable(tag, writer, done, tableCache)
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7922044Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/ttFont.py", line 1260, in _writeTable
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7922737Z     tabledata = self.getTableData(tag)
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7923431Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/ttFont.py", line 1282, in getTableData
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7924152Z     return self.tables[tag].compile(self)
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7924890Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/tables/_g_v_a_r.py", line 69, in compile
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7925610Z     axisTags, itertools.chain(*self.variations.values())
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7926264Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/_collections_abc.py", line 930, in __iter__
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7926842Z     yield self._mapping[key]
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7927524Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/misc/lazyTools.py", line 14, in __getitem__
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7928172Z     v = v(k)
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7928791Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/tables/_g_v_a_r.py", line 175, in read_item
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7929476Z     return decompileGlyph_(
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7930170Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/tables/_g_v_a_r.py", line 331, in decompileGlyph_
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7931320Z     return tv.decompileTupleVariationStore(
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7932175Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/tables/TupleVariation.py", line 809, in decompileTupleVariationStore
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7933008Z     decompileTupleVariation_(
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7933796Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/tables/TupleVariation.py", line 861, in decompileTupleVariation_
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7934740Z     deltas_x, pos = TupleVariation.decompileDeltas_(len(points), tupleData, pos)
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7935685Z   File "/opt/hostedtoolcache/Python/3.10.22/x64/lib/python3.10/site-packages/fontTools/ttLib/tables/TupleVariation.py", line 554, in decompileDeltas_
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7936491Z     assert numDeltas is None or len(result) == numDeltas
+build-font	Run Font Romanizer	2026-11-03T14:48:59.7936840Z AssertionError
+build-font	Run Font Romanizer	2026-11-03T14:49:00.4026595Z ##[error]Process completed with exit code 1.
+build-font	Post Checkout repository	﻿2026-11-03T14:49:00.4148577Z Post job cleanup.
+build-font	Post Checkout repository	2026-11-03T14:49:00.4861337Z [command]/usr/bin/git version
+build-font	Post Checkout repository	2026-11-03T14:49:00.4901411Z git version 2.56.0
+build-font	Post Checkout repository	2026-11-03T14:49:00.4937327Z Temporarily overriding HOME='/home/runner/work/_temp/c306ea1f-3f02-4116-ad9a-8d940a94335e' before making global git config changes
+build-font	Post Checkout repository	2026-11-03T14:49:00.4938337Z Adding repository directory to the temporary git global config as a safe directory
+build-font	Post Checkout repository	2026-11-03T14:49:00.4943108Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/Call/Call
+build-font	Post Checkout repository	2026-11-03T14:49:00.4985547Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+build-font	Post Checkout repository	2026-11-03T14:49:00.5027776Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+build-font	Post Checkout repository	2026-11-03T14:49:00.5261791Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+build-font	Post Checkout repository	2026-11-03T14:49:00.5289082Z http.https://github.com/.extraheader
+build-font	Post Checkout repository	2026-11-03T14:49:00.5298846Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+build-font	Post Checkout repository	2026-11-03T14:49:00.5338750Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+build-font	Post Checkout repository	2026-11-03T14:49:00.5570048Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+build-font	Post Checkout repository	2026-11-03T14:49:00.5609761Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+build-font	Complete job	﻿2026-11-03T14:49:00.5973290Z Cleaning up orphan processes
+build-font	Complete job	2026-11-03T14:49:00.6315011Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-python@v5. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
