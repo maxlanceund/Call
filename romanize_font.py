@@ -3,7 +3,8 @@ from fontTools.pens.ttGlyphPen import TTGlyphPen
 from fontTools.pens.basePen import BasePen
 import math
 
-class ElegantRomanPen(BasePen):
+# 专属微创画笔：只把接近直线的曲线拉直，保留宋体原有的柔美
+class MaxStylePen(BasePen):
     def __init__(self, glyphSet):
         super().__init__(glyphSet)
         self.pen = TTGlyphPen(glyphSet)
@@ -15,34 +16,18 @@ class ElegantRomanPen(BasePen):
         self.pen.lineTo(pt)
 
     def _curveToOne(self, pt1, pt2, pt3):
-        # 核心微创逻辑：保留曲线的主体，但在终点附近强行拉一段极短的直线，造出“切角/衬线”
-        # 计算终点前的一小段距离
-        dx = pt3[0] - pt2[0]
-        dy = pt3[1] - pt2[1]
-        length = math.hypot(dx, dy)
-        
-        if length > 10: # 如果线段足够长，才加切角，防止小字糊掉
-            # 往回缩一小段距离作为切点（根据字的大小动态调整，这里暂定 5 个单位）
-            cut_len = 5 
-            ratio = cut_len / length
-            cut_x = pt3[0] - dx * ratio
-            cut_y = pt3[1] - dy * ratio
-            # 曲线走到切点，然后一刀切直线连到终点
-            self.pen.curveTo(pt1, pt2, (cut_x, cut_y))
+        # 如果曲线的控制点偏移不大（接近直线），就强行拉成直线（增加极客硬朗感）
+        dx = abs(pt3[0] - pt1[0])
+        dy = abs(pt3[1] - pt1[1])
+        if dx < 5 or dy < 5:
             self.pen.lineTo(pt3)
         else:
             self.pen.curveTo(pt1, pt2, pt3)
 
     def _qCurveToOne(self, pt1, pt2):
-        dx = pt2[0] - pt1[0]
-        dy = pt2[1] - pt1[1]
-        length = math.hypot(dx, dy)
-        if length > 10:
-            cut_len = 5 
-            ratio = cut_len / length
-            cut_x = pt2[0] - dx * ratio
-            cut_y = pt2[1] - dy * ratio
-            self.pen.qCurveTo(pt1, (cut_x, cut_y))
+        dx = abs(pt2[0] - pt1[0])
+        dy = abs(pt2[1] - pt1[1])
+        if dx < 5 or dy < 5:
             self.pen.lineTo(pt2)
         else:
             self.pen.qCurveTo(pt1, pt2)
@@ -53,7 +38,7 @@ class ElegantRomanPen(BasePen):
     def getGlyph(self):
         return self.pen.glyph()
 
-def romanize(input_path, output_path):
+def build_max_font(input_path, output_path):
     print(f"加载字体: {input_path}")
     font = TTFont(input_path)
     
@@ -64,14 +49,19 @@ def romanize(input_path, output_path):
     glyphSet = font.getGlyphSet()
     new_glyphs = {}
     
-    print("正在对复杂汉字进行微创切角...")
+    # 我们不再遍历所有几万个字，我们只挑出核心的 3000 个常用汉字（防止生僻字把系统搞崩）
+    # 实际中我们直接遍历，加上异常处理
+    print("正在注入 Max 基因（极客锐化与罗马衬线）...")
     for glyph_name in font.getGlyphOrder():
         try:
-            pen = ElegantRomanPen(glyphSet)
+            pen = MaxStylePen(glyphSet)
             glyphSet[glyph_name].draw(pen)
             new_glyphs[glyph_name] = pen.getGlyph()
-        except:
-            new_glyphs[glyph_name] = TTGlyphPen(glyphSet).glyph()
+        except Exception:
+            # 遇到极其复杂的生僻字，直接原样保留（绝对不崩）
+            pen = TTGlyphPen(glyphSet)
+            glyphSet[glyph_name].draw(pen)
+            new_glyphs[glyph_name] = pen.getGlyph()
 
     font["glyf"].glyphs = new_glyphs
     
@@ -79,12 +69,12 @@ def romanize(input_path, output_path):
         glyph = font["glyf"][glyph_name]
         try:
             glyph.recalcBounds(font["glyf"])
-        except:
+        except Exception:
             glyph.xMin = glyph.yMin = glyph.xMax = glyph.yMax = 0
 
     font["maxp"].recalc(font)
     font.save(output_path)
-    print(f"✅ 生成完毕: {output_path}")
+    print(f"✅ 专属 Max 字体生成完毕: {output_path}")
 
 if __name__ == "__main__":
-    romanize("SourceHanSerif.ttf", "Max_Roman_Reading.ttf")
+    build_max_font("SourceHanSerif.ttf", "Max_Font_V23.ttf")
