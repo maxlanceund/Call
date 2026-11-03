@@ -18,7 +18,8 @@ jobs:
     - name: Install dependencies
       run: |
         pip install fonttools brotli
-        curl -L -o SourceHanSans.ttf "https://github.com/notofonts/noto-cjk/raw/main/Sans/SubsetOTF/SC/NotoSansSC-Regular.otf"
+        # 🚨 核心修复：下载 TTF 格式的思源黑体，而不是 OTF
+        curl -L -o SourceHanSans.ttf "https://github.com/google/fonts/raw/main/ofl/notosanssc/NotoSansSC%5Bwght%5D.ttf"
     - name: Run Font Romanizer
       run: python romanize_font.py
     - name: Upload Generated Font
