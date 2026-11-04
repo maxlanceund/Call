@@ -3,8 +3,7 @@ package com.maxlance.call
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
-import android.media.AudioAttributes
-import android.media.SoundPool
+import android.media.MediaPlayer
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -69,24 +68,32 @@ fun CallApp() {
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
-    val soundPool = remember {
-        val audioAttributes = AudioAttributes.Builder()
-            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
-            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
-            .build()
-        // 🚨 核心修复：限制最多同时播放 1 个音效！防止 1 秒长的录音重叠！
-        SoundPool.Builder().setMaxStreams(1).setAudioAttributes(audioAttributes).build()
-    }
-    
-    var typewriterSoundId by remember { mutableStateOf(0) }
-    var isSoundLoaded by remember { mutableStateOf(false) }
-    
-    DisposableEffect(Unit) {
-        soundPool.setOnLoadCompleteListener { _, _, status ->
-            if (status == 0) isSoundLoaded = true
+    // 🚨 终极方案：准备一个 MediaPlayer 池，防止打字太快卡死
+    val mediaPlayers = remember {
+        List(3) {
+            MediaPlayer.create(context, R.raw.typewriter)
         }
-        typewriterSoundId = soundPool.load(context, R.raw.typewriter, 1)
-        onDispose { soundPool.release() }
+    }
+    var currentPlayerIndex by remember { mutableStateOf(0) }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayers.forEach { it.release() }
+        }
+    }
+
+    fun playSound() {
+        try {
+            val player = mediaPlayers[currentPlayerIndex]
+            if (player.isPlaying) {
+                player.seekTo(0)
+            } else {
+                player.start()
+            }
+            currentPlayerIndex = (currentPlayerIndex + 1) % mediaPlayers.size
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
 
     val prefs = remember { context.getSharedPreferences("call_prefs", Context.MODE_PRIVATE) }
@@ -354,8 +361,9 @@ fun CallApp() {
                     value = textFieldValue,
                     onValueChange = { 
                         if (!isReadOnly) {
-                            if (isSoundLoaded && it.text.length > textFieldValue.text.length) {
-                                soundPool.play(typewriterSoundId, 0.6f, 0.6f, 0, 0, 1f)
+                            // 🚨 核心：直接调用 MediaPlayer 播放
+                            if (it.text.length > textFieldValue.text.length) {
+                                playSound()
                             }
                             textFieldValue = it 
                         }
