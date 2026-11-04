@@ -1,5 +1,6 @@
 package com.maxlance.call
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -51,15 +52,15 @@ fun CallApp() {
     var isPaperMode by remember { mutableStateOf(true) }
     var currentFile by remember { mutableStateOf<File?>(null) }
     var isReadOnly by remember { mutableStateOf(true) }
-    
     var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
-    
-    var showTitleInput by remember { mutableStateOf(false) }
-    var titleInputValue by remember { mutableStateOf("") }
-    val titleFocusRequester = remember { FocusRequester() }
 
-    // 🚨 核心修复：记录手指滑动的总距离
-    var totalDragAmount by remember { mutableStateOf(0f) }
+    // 游标卡尺状态
+    var showRuler by remember { mutableStateOf(false) }
+    var rulerText by remember { mutableStateOf("") }
+    val rulerFocusRequester = remember { FocusRequester() }
+
+    // 手势累加器
+    var totalDrag by remember { mutableStateOf(0f) }
 
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
@@ -88,67 +89,90 @@ fun CallApp() {
         }
     }
 
-    LaunchedEffect(showTitleInput) {
-        if (showTitleInput) {
+    LaunchedEffect(showRuler) {
+        if (showRuler) {
             delay(200)
-            titleFocusRequester.requestFocus()
+            rulerFocusRequester.requestFocus()
         }
     }
 
-    fun commitTitle() {
-        if (titleInputValue.isNotBlank()) {
-            val newTitle = "# " + titleInputValue.trim() + "\n\n"
-            val cleanText = if(textFieldValue.text.startsWith(newTitle)) textFieldValue.text else newTitle + textFieldValue.text
-            textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(newTitle.length))
+    // 收纳游标卡尺
+    fun commitRuler() {
+        if (rulerText.isNotBlank()) {
+            val prefix = "# " + rulerText.trim() + "\n\n"
+            val newText = if (textFieldValue.text.startsWith(prefix)) textFieldValue.text else prefix + textFieldValue.text
+            textFieldValue = TextFieldValue(text = newText, selection = TextRange(prefix.length))
         }
-        showTitleInput = false
-        titleInputValue = ""
+        showRuler = false
+        rulerText = ""
         keyboardController?.show()
         focusRequester.requestFocus()
     }
 
     Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
         Column(modifier = Modifier.fillMaxSize().imePadding().padding(24.dp)) {
-            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()), color = textColor.copy(alpha = 0.5f), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
-                Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable { isPaperMode = !isPaperMode })
+            // 顶部：日期和主题切换
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()),
+                    color = textColor.copy(alpha = 0.5f),
+                    fontSize = 11.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+                Text(
+                    text = "◐",
+                    color = textColor.copy(alpha = 0.6f),
+                    fontSize = 18.sp,
+                    modifier = Modifier.clickable { isPaperMode = !isPaperMode }
+                )
             }
 
+            // 中间：正文输入区
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 BasicTextField(
                     value = textFieldValue,
                     onValueChange = { if (!isReadOnly) textFieldValue = it },
                     readOnly = isReadOnly,
-                    modifier = Modifier.fillMaxSize().focusRequester(focusRequester).verticalScroll(scrollState),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .focusRequester(focusRequester)
+                        .verticalScroll(scrollState),
                     textStyle = TextStyle(color = textColor, fontSize = 16.sp, lineHeight = 28.sp, fontFamily = FontFamily.Monospace),
                     cursorBrush = SolidColor(textColor),
                     decorationBox = { innerTextField ->
-                        if (textFieldValue.text.isEmpty() && !isReadOnly) Text("> Start logging...\n(向右滑写大标题)", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace)
+                        if (textFieldValue.text.isEmpty() && !isReadOnly) {
+                            Text("> Start logging...\n(向右滑写大标题)", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace)
+                        }
                         innerTextField()
                     }
                 )
-                
+
+                // 🚨 手势拦截层
                 if (!isReadOnly) {
-                    Box(modifier = Modifier.fillMaxSize().pointerInput(Unit) {
-                        detectHorizontalDragGestures(
-                            onDragStart = { totalDragAmount = 0f }, // 每次按下清零
-                            onDragEnd = { totalDragAmount = 0f }    // 每次抬起清零
-                        ) { change, dragAmount ->
-                            change.consume() // 拦截事件，防误触
-                            totalDragAmount += dragAmount
-                            // 🚨 只要累计向右滑动超过 80 像素，就触发！
-                            if (totalDragAmount > 80 && !showTitleInput) {
-                                showTitleInput = true
-                                keyboardController?.hide()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .pointerInput(Unit) {
+                                detectHorizontalDragGestures(
+                                    onDragStart = { totalDrag = 0f },
+                                    onDragEnd = { totalDrag = 0f }
+                                ) { change, dragAmount ->
+                                    change.consume() // 吃掉滑动事件
+                                    totalDrag += dragAmount
+                                    if (totalDrag > 80 && !showRuler) {
+                                        showRuler = true
+                                        keyboardController?.hide()
+                                    }
+                                }
                             }
-                        }
-                    })
+                    )
                 }
             }
 
+            // 底部按键区
             Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 if (isReadOnly) {
-                    // 🚨 你的灵魂羽毛笔回归
+                    // 羽毛笔（已经确认图片存在）
                     Image(
                         painter = painterResource(id = R.drawable.my_pen),
                         contentDescription = "New",
@@ -163,40 +187,61 @@ fun CallApp() {
                             .padding(horizontal = 24.dp)
                     )
                 } else {
-                    Text("Ξ", color = Color(0xFF58A6FF), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
-                        if (textFieldValue.text.isNotEmpty()) currentFile?.writeText(textFieldValue.text)
-                        isReadOnly = true
-                        focusManager.clearFocus()
-                        keyboardController?.hide()
-                    }.padding(horizontal = 24.dp))
+                    // 保存封印
+                    Text(
+                        text = "Ξ",
+                        color = Color(0xFF58A6FF),
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clickable {
+                                if (textFieldValue.text.isNotEmpty()) currentFile?.writeText(textFieldValue.text)
+                                isReadOnly = true
+                                focusManager.clearFocus()
+                                keyboardController?.hide()
+                            }
+                            .padding(horizontal = 24.dp)
+                    )
                 }
             }
         }
 
-        if (showTitleInput) {
+        // 🚨 游标卡尺 UI（从顶部滑入）
+        if (showRuler) {
             Column(
-                modifier = Modifier.fillMaxWidth().background(bgColor.copy(alpha = 0.98f))
-                    .clickable { commitTitle() }
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(bgColor.copy(alpha = 0.98f))
+                    // 点击任何空白处，触发收纳
+                    .clickable(
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() },
+                        indication = null
+                    ) { commitRuler() }
                     .padding(top = 40.dp, bottom = 20.dp, start = 24.dp, end = 24.dp)
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    // 左侧刻度线
                     Box(modifier = Modifier.height(1.dp).weight(1f).background(textColor.copy(alpha = 0.4f)))
+                    // 几何方块标记
                     Text(" ■■ ", color = textColor, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                    // 输入区
                     BasicTextField(
-                        value = titleInputValue,
-                        onValueChange = { titleInputValue = it },
-                        modifier = Modifier.weight(4f).focusRequester(titleFocusRequester),
+                        value = rulerText,
+                        onValueChange = { rulerText = it },
+                        modifier = Modifier.weight(4f).focusRequester(rulerFocusRequester),
                         textStyle = TextStyle(color = textColor, fontSize = 24.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace),
                         cursorBrush = SolidColor(Color(0xFF58A6FF)),
                         decorationBox = { innerTextField ->
-                            if (titleInputValue.isEmpty()) Text(" 大标题...", color = textColor.copy(alpha = 0.2f))
+                            if (rulerText.isEmpty()) Text(" 大标题...", color = textColor.copy(alpha = 0.2f))
                             innerTextField()
                         }
                     )
+                    // 右侧刻度线
                     Box(modifier = Modifier.height(1.dp).weight(1f).background(textColor.copy(alpha = 0.4f)))
                 }
                 Spacer(modifier = Modifier.height(12.dp))
-                Text("> 点击空白处收纳", color = textColor.copy(alpha = 0.3f), fontSize = 10.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
+                // 提示语
+                Text("> 点击空白处收纳封印", color = textColor.copy(alpha = 0.3f), fontSize = 10.sp, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
         }
     }
