@@ -27,6 +27,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -116,7 +117,6 @@ fun CallApp() {
         }
     }
 
-    // 🚨 拦截返回键：如果在标题输入模式，按返回键仅关闭悬浮框
     BackHandler(enabled = showTitleInput) {
         showTitleInput = false
         titleInputValue = ""
@@ -124,20 +124,16 @@ fun CallApp() {
         keyboardController?.hide()
     }
 
-    // 🚨 修复 B 的 Bug：写完后必须强制唤醒编辑状态，确保数据落地
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
             val newTitle = "# ${titleInputValue.trim()}\n\n"
             val cleanText = newTitle + textFieldValue.text
             textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(newTitle.length))
-            // 🚨 核心修复：写完标题立刻进入可编辑状态
             isReadOnly = false
             isDraft = true
-            // 确保文件存在，如果不存在则新建
             if (currentFile == null) {
                 currentFile = File(context.filesDir, "${SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())}.md")
             }
-            // 强制触发一次保存
             try { currentFile?.writeText(textFieldValue.text) } catch (e: Exception) {}
         }
         showTitleInput = false
@@ -236,16 +232,21 @@ fun CallApp() {
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 if (isReadOnly) {
+                    // 🚨 修复：先加 padding 留出点击空间，再限定 size
                     Image(
                         painter = painterResource(id = R.drawable.my_pen),
                         contentDescription = "New",
+                        contentScale = ContentScale.Fit,
                         colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
-                        modifier = Modifier.size(24.dp).clickable {
-                            currentFile = File(context.filesDir, "${SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())}.md")
-                            textFieldValue = TextFieldValue("")
-                            isReadOnly = false
-                            isDraft = true
-                        }.padding(horizontal = 24.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .size(24.dp)
+                            .clickable {
+                                currentFile = File(context.filesDir, "${SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())}.md")
+                                textFieldValue = TextFieldValue("")
+                                isReadOnly = false
+                                isDraft = true
+                            }
                     )
                     
                     Text("·", color = textColor.copy(alpha = 0.3f), fontSize = 18.sp, fontFamily = FontFamily.Monospace)
@@ -253,10 +254,14 @@ fun CallApp() {
                     Image(
                         painter = painterResource(id = R.drawable.title_icon),
                         contentDescription = "Title",
+                        contentScale = ContentScale.Fit,
                         colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
-                        modifier = Modifier.size(24.dp).clickable {
-                            showTitleInput = true
-                        }.padding(horizontal = 24.dp)
+                        modifier = Modifier
+                            .padding(horizontal = 24.dp)
+                            .size(24.dp)
+                            .clickable {
+                                showTitleInput = true
+                            }
                     )
                 } else {
                     Text("Ξ", color = Color(0xFF58A6FF), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
