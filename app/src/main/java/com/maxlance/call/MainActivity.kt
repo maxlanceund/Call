@@ -1,6 +1,7 @@
 package com.maxlance.call
 
 import android.content.Intent
+import android.graphics.Typeface
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -54,67 +55,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-// 🚨 终极黑科技：完美的 Typora 视觉转换器
-class MarkdownTitleVisualTransformation(private val titleSize: Int = 24) : VisualTransformation {
-    override fun filter(text: AnnotatedString): TransformedText {
-        val textStr = text.text
-        if (!textStr.contains("# ")) {
-            return TransformedText(text, OffsetMapping.Identity)
-        }
-
-        val transformed = buildAnnotatedString {
-            val lines = textStr.split("\n")
-            for (i in lines.indices) {
-                val line = lines[i]
-                if (line.startsWith("# ")) {
-                    // 隐藏 # ，放大后面的字
-                    withStyle(style = SpanStyle(fontSize = titleSize.sp, fontWeight = FontWeight.Bold)) {
-                        append(line.substring(2))
-                    }
-                } else {
-                    append(line)
-                }
-                if (i < lines.size - 1) {
-                    append("\n")
-                }
-            }
-        }
-
-        val offsetMapping = object : OffsetMapping {
-            override fun originalToTransformed(offset: Int): Int {
-                var hiddenCount = 0
-                for (i in 0 until offset) {
-                    if (i + 1 < textStr.length && textStr[i] == '#' && textStr[i + 1] == ' ' && (i == 0 || textStr[i - 1] == '\n')) {
-                        if (offset <= i + 2) {
-                            hiddenCount += offset - i
-                        } else {
-                            hiddenCount += 2
-                        }
-                    }
-                }
-                return (offset - hiddenCount).coerceIn(0, transformed.length)
-            }
-
-            override fun transformedToOriginal(offset: Int): Int {
-                if (offset == 0) return 0
-                var transformedCount = 0
-                var originalIndex = 0
-                while (originalIndex < textStr.length) {
-                    if (originalIndex + 1 < textStr.length && textStr[originalIndex] == '#' && textStr[originalIndex + 1] == ' ' && (originalIndex == 0 || textStr[originalIndex - 1] == '\n')) {
-                        originalIndex += 2
-                    } else {
-                        transformedCount++
-                        originalIndex++
-                        if (transformedCount == offset) return originalIndex
-                    }
-                }
-                return textStr.length
-            }
-        }
-        return TransformedText(transformed, offsetMapping)
-    }
-}
-
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun CallApp() {
@@ -124,13 +64,23 @@ fun CallApp() {
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
+    // 🚨 终极字体加载方案：从 assets 强拽进来，就算天塌下来也能加载！
+    val maxFontFamily = remember {
+        try {
+            val typeface = Typeface.createFromAsset(context.assets, "max_serif.ttf")
+            FontFamily(typeface)
+        } catch (e: Exception) {
+            FontFamily.Monospace // 兜底方案
+        }
+    }
+
     var isPaperMode by remember { mutableStateOf(true) }
     var isHistoryOpen by remember { mutableStateOf(false) }
     var currentFile by remember { mutableStateOf<File?>(null) }
     var isReadOnly by remember { mutableStateOf(true) }
     var isDraft by remember { mutableStateOf(false) }
     var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
-    var fontSize by remember { mutableStateOf(16.sp) }
+    var fontSize by remember { mutableStateOf(16.sp) } // 正文默认 16
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
 
     var showTitleInput by remember { mutableStateOf(false) }
@@ -139,6 +89,60 @@ fun CallApp() {
 
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
+
+    // 🚨 终极视觉转换器：19sp，不加粗，使用专属字体
+    val visualTransformation = remember(maxFontFamily) {
+        object : VisualTransformation {
+            override fun filter(text: AnnotatedString): TransformedText {
+                val textStr = text.text
+                if (!textStr.contains("# ")) return TransformedText(text, OffsetMapping.Identity)
+
+                val transformed = buildAnnotatedString {
+                    val lines = textStr.split("\n")
+                    for (i in lines.indices) {
+                        val line = lines[i]
+                        if (line.startsWith("# ")) {
+                            // 去掉 FontWeight.Bold，纯靠字体本身的骨骼撑起气势
+                            withStyle(style = SpanStyle(fontSize = 19.sp, fontFamily = maxFontFamily)) {
+                                append(line.substring(2))
+                            }
+                        } else {
+                            append(line)
+                        }
+                        if (i < lines.size - 1) append("\n")
+                    }
+                }
+
+                val offsetMapping = object : OffsetMapping {
+                    override fun originalToTransformed(offset: Int): Int {
+                        var hiddenCount = 0
+                        for (i in 0 until offset) {
+                            if (i + 1 < textStr.length && textStr[i] == '#' && textStr[i + 1] == ' ' && (i == 0 || textStr[i - 1] == '\n')) {
+                                if (offset <= i + 2) hiddenCount += offset - i else hiddenCount += 2
+                            }
+                        }
+                        return (offset - hiddenCount).coerceIn(0, transformed.length)
+                    }
+                    override fun transformedToOriginal(offset: Int): Int {
+                        if (offset == 0) return 0
+                        var transformedCount = 0
+                        var originalIndex = 0
+                        while (originalIndex < textStr.length) {
+                            if (originalIndex + 1 < textStr.length && textStr[originalIndex] == '#' && textStr[originalIndex + 1] == ' ' && (originalIndex == 0 || textStr[originalIndex - 1] == '\n')) {
+                                originalIndex += 2
+                            } else {
+                                transformedCount++
+                                originalIndex++
+                                if (transformedCount == offset) return originalIndex
+                            }
+                        }
+                        return textStr.length
+                    }
+                }
+                return TransformedText(transformed, offsetMapping)
+            }
+        }
+    }
 
     fun refreshLogs() {
         val files = context.filesDir.listFiles { file -> file.extension == "md" }
@@ -194,7 +198,6 @@ fun CallApp() {
 
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
-            // 在标题上方加两个换行符，让它和上面的内容隔开
             val newTitle = "\n\n# ${titleInputValue.trim()}\n\n"
             val cleanText = newTitle + textFieldValue.text
             textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(newTitle.length))
@@ -284,10 +287,10 @@ fun CallApp() {
                     onValueChange = { if (!isReadOnly) textFieldValue = it },
                     readOnly = isReadOnly,
                     modifier = Modifier.fillMaxSize().focusRequester(focusRequester).verticalScroll(scrollState),
-                    textStyle = TextStyle(color = textColor, fontSize = fontSize, lineHeight = (fontSize.value * 1.6).sp, fontFamily = FontFamily.Monospace),
+                    // 正文也应用专属字体
+                    textStyle = TextStyle(color = textColor, fontSize = fontSize, lineHeight = (fontSize.value * 1.6).sp, fontFamily = maxFontFamily),
                     cursorBrush = SolidColor(textColor),
-                    // 🚨 只有非拼音输入状态下，才应用视觉转换，彻底防死锁
-                    visualTransformation = if (textFieldValue.composition != null) VisualTransformation.None else MarkdownTitleVisualTransformation(),
+                    visualTransformation = if (textFieldValue.composition != null) VisualTransformation.None else visualTransformation,
                     decorationBox = { innerTextField ->
                         if (textFieldValue.text.isEmpty() && !isReadOnly) {
                             Text("> Start logging...", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace)
@@ -352,7 +355,8 @@ fun CallApp() {
                         value = titleInputValue,
                         onValueChange = { titleInputValue = it },
                         modifier = Modifier.fillMaxWidth().focusRequester(titleFocusRequester),
-                        textStyle = TextStyle(color = textColor, fontSize = 24.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, textAlign = TextAlign.Center),
+                        // 悬浮标题框也应用 19sp 和专属字体
+                        textStyle = TextStyle(color = textColor, fontSize = 19.sp, fontFamily = maxFontFamily, textAlign = TextAlign.Center),
                         cursorBrush = SolidColor(textColor),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { commitTitle() }),
