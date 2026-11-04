@@ -32,13 +32,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.input.TransformedText
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -46,6 +53,67 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+
+// 🚨 终极黑科技：完美的 Typora 视觉转换器
+class MarkdownTitleVisualTransformation(private val titleSize: Int = 24) : VisualTransformation {
+    override fun filter(text: AnnotatedString): TransformedText {
+        val textStr = text.text
+        if (!textStr.contains("# ")) {
+            return TransformedText(text, OffsetMapping.Identity)
+        }
+
+        val transformed = buildAnnotatedString {
+            val lines = textStr.split("\n")
+            for (i in lines.indices) {
+                val line = lines[i]
+                if (line.startsWith("# ")) {
+                    // 隐藏 # ，放大后面的字
+                    withStyle(style = SpanStyle(fontSize = titleSize.sp, fontWeight = FontWeight.Bold)) {
+                        append(line.substring(2))
+                    }
+                } else {
+                    append(line)
+                }
+                if (i < lines.size - 1) {
+                    append("\n")
+                }
+            }
+        }
+
+        val offsetMapping = object : OffsetMapping {
+            override fun originalToTransformed(offset: Int): Int {
+                var hiddenCount = 0
+                for (i in 0 until offset) {
+                    if (i + 1 < textStr.length && textStr[i] == '#' && textStr[i + 1] == ' ' && (i == 0 || textStr[i - 1] == '\n')) {
+                        if (offset <= i + 2) {
+                            hiddenCount += offset - i
+                        } else {
+                            hiddenCount += 2
+                        }
+                    }
+                }
+                return (offset - hiddenCount).coerceIn(0, transformed.length)
+            }
+
+            override fun transformedToOriginal(offset: Int): Int {
+                if (offset == 0) return 0
+                var transformedCount = 0
+                var originalIndex = 0
+                while (originalIndex < textStr.length) {
+                    if (originalIndex + 1 < textStr.length && textStr[originalIndex] == '#' && textStr[originalIndex + 1] == ' ' && (originalIndex == 0 || textStr[originalIndex - 1] == '\n')) {
+                        originalIndex += 2
+                    } else {
+                        transformedCount++
+                        originalIndex++
+                        if (transformedCount == offset) return originalIndex
+                    }
+                }
+                return textStr.length
+            }
+        }
+        return TransformedText(transformed, offsetMapping)
+    }
+}
 
 @OptIn(ExperimentalComposeUiApi::class)
 @Composable
@@ -124,18 +192,12 @@ fun CallApp() {
         keyboardController?.hide()
     }
 
-    // 🚨 最终妥协逻辑：上方留白 + # 号，左对齐
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
             // 在标题上方加两个换行符，让它和上面的内容隔开
             val newTitle = "\n\n# ${titleInputValue.trim()}\n\n"
-            // 如果原来是空的，就不需要上面的两个换行
-            val prefix = if (textFieldValue.text.isEmpty()) "" else "\n\n"
-            val titleText = "$prefix# ${titleInputValue.trim()}\n\n"
-            
-            val cleanText = titleText + textFieldValue.text
-            textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(titleText.length))
-            
+            val cleanText = newTitle + textFieldValue.text
+            textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(newTitle.length))
             isReadOnly = false
             isDraft = true
             if (currentFile == null) {
@@ -224,6 +286,8 @@ fun CallApp() {
                     modifier = Modifier.fillMaxSize().focusRequester(focusRequester).verticalScroll(scrollState),
                     textStyle = TextStyle(color = textColor, fontSize = fontSize, lineHeight = (fontSize.value * 1.6).sp, fontFamily = FontFamily.Monospace),
                     cursorBrush = SolidColor(textColor),
+                    // 🚨 只有非拼音输入状态下，才应用视觉转换，彻底防死锁
+                    visualTransformation = if (textFieldValue.composition != null) VisualTransformation.None else MarkdownTitleVisualTransformation(),
                     decorationBox = { innerTextField ->
                         if (textFieldValue.text.isEmpty() && !isReadOnly) {
                             Text("> Start logging...", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace)
