@@ -75,17 +75,23 @@ fun CallApp() {
     }
 
     val soundPool = remember {
-        SoundPool.Builder().setMaxStreams(6).build()
+        SoundPool.Builder().setMaxStreams(8).build()
     }
 
-    // 多音效：每个文件一个 soundId，顺序要和选择器里名字对应
+    // 打字音效：三个可选
     val soundIds = remember {
         listOf(
             soundPool.load(context, R.raw.typewriter, 1),
-            soundPool.load(context, R.raw.typewriter2, 1)
+            soundPool.load(context, R.raw.typewriter2, 1),
+            soundPool.load(context, R.raw.typewriter3, 1)
         )
     }
-    val soundNames = listOf("打字机 1", "打字机 2")
+    val soundNames = listOf("打字机 1", "打字机 2", "打字机 3")
+
+    // 换行音效：单独一个，不进选择器
+    val enterSoundId = remember {
+        soundPool.load(context, R.raw.enter, 1)
+    }
 
     val prefs = remember { context.getSharedPreferences("call_prefs", Context.MODE_PRIVATE) }
     var currentSoundIndex by remember {
@@ -249,7 +255,6 @@ fun CallApp() {
         refreshLogs()
     }
 
-    // ===== 音效选择弹窗 =====
     if (showSoundPicker) {
         AlertDialog(
             onDismissRequest = { showSoundPicker = false },
@@ -267,7 +272,6 @@ fun CallApp() {
                                 .clickable {
                                     currentSoundIndex = index
                                     prefs.edit().putInt("sound_index", index).apply()
-                                    // 当场试听
                                     soundPool.play(soundIds[index], 1f, 1f, 1, 0, 1f)
                                 }
                                 .padding(vertical = 14.dp),
@@ -410,12 +414,22 @@ fun CallApp() {
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 BasicTextField(
                     value = textFieldValue,
-                    onValueChange = {
+                    onValueChange = { newValue ->
                         if (!isReadOnly) {
-                            if (it.text.length > textFieldValue.text.length && it.composition == null) {
-                                soundPool.play(soundIds[currentSoundIndex], 1f, 1f, 1, 0, 1f)
+                            val oldText = textFieldValue.text
+                            val newText = newValue.text
+                            if (newText.length > oldText.length) {
+                                val newLineCount = newText.count { c -> c == '\n' }
+                                val oldLineCount = oldText.count { c -> c == '\n' }
+                                if (newLineCount > oldLineCount) {
+                                    // 换行：播齿轮声
+                                    soundPool.play(enterSoundId, 1f, 1f, 1, 0, 1f)
+                                } else if (newValue.composition == null) {
+                                    // 普通打字：播选中的打字音
+                                    soundPool.play(soundIds[currentSoundIndex], 1f, 1f, 1, 0, 1f)
+                                }
                             }
-                            textFieldValue = it
+                            textFieldValue = newValue
                         }
                     },
                     readOnly = isReadOnly,
