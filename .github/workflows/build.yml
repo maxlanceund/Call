@@ -1,26 +1,20 @@
-name: Build Call APK
-on: [push]
-
+name: Build Call App
+on: [push, workflow_dispatch]
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
-    
     - name: set up JDK 17
       uses: actions/setup-java@v4
       with:
         java-version: '17'
         distribution: 'temurin'
-        
-    - name: Setup Gradle 8.1
-      uses: gradle/actions/setup-gradle@v3
-      with:
-        gradle-version: '8.1'
-        
+        cache: gradle
+    - name: Grant execute permission for gradlew
+      run: chmod +x gradlew
     - name: Build with Gradle
-      run: gradle assembleDebug
-      
+      run: ./gradlew assembleDebug
     - name: Upload APK
       uses: actions/upload-artifact@v4
       with:
