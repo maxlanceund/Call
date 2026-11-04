@@ -132,8 +132,9 @@ fun CallApp() {
     var longPressedFileName by remember { mutableStateOf<String?>(null) }
     var unlockedFiles by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
-    val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
+    // 复古打字纸背景 + 深褐墨迹文字
+    val bgColor = if (isPaperMode) Color(0xFFE8DCC4) else Color(0xFF0D1117)
+    val textColor = if (isPaperMode) Color(0xFF2C221A) else Color(0xFFE6EDF3)
 
     val visualTransformation = remember(maxFontFamily) {
         object : VisualTransformation {
