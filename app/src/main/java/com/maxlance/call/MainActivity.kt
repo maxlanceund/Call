@@ -3,7 +3,8 @@ package com.maxlance.call
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
-import android.media.MediaPlayer
+import android.media.AudioManager
+import android.media.ToneGenerator
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -68,32 +69,20 @@ fun CallApp() {
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
-    // 🚨 终极方案：准备一个 MediaPlayer 池，防止打字太快卡死
-    val mediaPlayers = remember {
-        List(3) {
-            MediaPlayer.create(context, R.raw.typewriter)
-        }
+    // 🚨 终极底层：ToneGenerator。直接调用硬件发声，不需要任何文件！
+    val toneGenerator = remember { 
+        ToneGenerator(AudioManager.STREAM_MUSIC, 70) // 70的音量
     }
-    var currentPlayerIndex by remember { mutableStateOf(0) }
+
+    // 🚨 测试代码：App 一启动，强制“滴”一声，如果没声音就是系统/媒体音量的问题！
+    LaunchedEffect(Unit) {
+        try {
+            toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 200)
+        } catch (e: Exception) {}
+    }
 
     DisposableEffect(Unit) {
-        onDispose {
-            mediaPlayers.forEach { it.release() }
-        }
-    }
-
-    fun playSound() {
-        try {
-            val player = mediaPlayers[currentPlayerIndex]
-            if (player.isPlaying) {
-                player.seekTo(0)
-            } else {
-                player.start()
-            }
-            currentPlayerIndex = (currentPlayerIndex + 1) % mediaPlayers.size
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        onDispose { toneGenerator.release() }
     }
 
     val prefs = remember { context.getSharedPreferences("call_prefs", Context.MODE_PRIVATE) }
@@ -361,9 +350,9 @@ fun CallApp() {
                     value = textFieldValue,
                     onValueChange = { 
                         if (!isReadOnly) {
-                            // 🚨 核心：直接调用 MediaPlayer 播放
                             if (it.text.length > textFieldValue.text.length) {
-                                playSound()
+                                // 🚨 触发打字音：极短促的系统提示音
+                                toneGenerator.startTone(ToneGenerator.TONE_CDMA_PIP, 20) 
                             }
                             textFieldValue = it 
                         }
