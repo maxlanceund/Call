@@ -7,10 +7,12 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +31,9 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.TextFieldValue
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -54,6 +58,11 @@ fun CallApp() {
     var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var fontSize by remember { mutableStateOf(16.sp) }
 
+    // 🚨 标题输入状态
+    var showTitleInput by remember { mutableStateOf(false) }
+    var titleInputValue by remember { mutableStateOf("") }
+    val titleFocusRequester = remember { FocusRequester() }
+
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
@@ -66,6 +75,7 @@ fun CallApp() {
         }
     }
 
+    // 自动保存
     LaunchedEffect(textFieldValue.text) {
         if (!isReadOnly && textFieldValue.text.isNotEmpty()) {
             delay(1000)
@@ -90,10 +100,30 @@ fun CallApp() {
         }
     }
 
+    LaunchedEffect(showTitleInput) {
+        if (showTitleInput) {
+            delay(200)
+            titleFocusRequester.requestFocus()
+        }
+    }
+
+    // 🚨 核心：敲下回车，生成居中的“所见即所得”标题
+    fun commitTitle() {
+        if (titleInputValue.isNotBlank()) {
+            // 不使用 # 号，直接用全角空格和换行让它视觉居中
+            val newTitle = "\n${titleInputValue.trim()}\n\n"
+            val cleanText = newTitle + textFieldValue.text
+            textFieldValue = TextFieldValue(text = cleanText)
+        }
+        showTitleInput = false
+        titleInputValue = ""
+        keyboardController?.hide()
+    }
+
     Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
         Column(modifier = Modifier.fillMaxSize().imePadding().padding(24.dp)) {
             
-            // 顶部 UI（带 - + 和 ◐）
+            // 顶部 UI（带 - + ◐）
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(SimpleDateFormat("yyyy MM dd", Locale.getDefault()).format(Date()), color = textColor.copy(alpha = 0.5f), fontSize = 11.sp, letterSpacing = 2.sp, fontFamily = FontFamily.Monospace)
@@ -108,7 +138,7 @@ fun CallApp() {
                 }
             }
 
-            // 正文输入区
+            // 正文区
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 BasicTextField(
                     value = textFieldValue,
@@ -125,15 +155,12 @@ fun CallApp() {
                     }
                 )
 
-                // 🚨 核心：透明玻璃层，实现“假保存后点击唤醒”
                 if (isReadOnly && isDraft) {
                     Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) { isReadOnly = false }
+                        modifier = Modifier.fillMaxSize().clickable(
+                            indication = null,
+                            interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                        ) { isReadOnly = false }
                     )
                 }
             }
@@ -141,7 +168,19 @@ fun CallApp() {
             // 底部 UI
             Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 if (isReadOnly) {
-                    // 羽毛笔
+                    // 标题按钮（你画的神庙）
+                    Image(
+                        painter = painterResource(id = R.drawable.title_icon),
+                        contentDescription = "Title",
+                        colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
+                        modifier = Modifier.size(24.dp).clickable {
+                            showTitleInput = true
+                        }.padding(horizontal = 16.dp)
+                    )
+                    
+                    Text("·", color = textColor.copy(alpha = 0.3f), fontSize = 18.sp, fontFamily = FontFamily.Monospace)
+
+                    // 羽毛笔按钮
                     Image(
                         painter = painterResource(id = R.drawable.my_pen),
                         contentDescription = "New",
@@ -150,8 +189,8 @@ fun CallApp() {
                             currentFile = File(context.filesDir, "${SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())}.md")
                             textFieldValue = TextFieldValue("")
                             isReadOnly = false
-                            isDraft = true // 🚨 开启草稿模式
-                        }.padding(horizontal = 24.dp)
+                            isDraft = true
+                        }.padding(horizontal = 16.dp)
                     )
                 } else {
                     // 假保存 Ξ
@@ -161,6 +200,50 @@ fun CallApp() {
                         focusManager.clearFocus()
                         keyboardController?.hide()
                     }.padding(horizontal = 24.dp))
+                }
+            }
+        }
+
+        // 🚨 标题输入悬浮 UI（只有一条线，无圆角）
+        if (showTitleInput) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(bgColor.copy(alpha = 0.95f))
+                    .clickable(
+                        indication = null,
+                        interactionSource = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+                    ) { /* 阻止点击穿透 */ },
+                contentAlignment = Alignment.Center
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 32.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    BasicTextField(
+                        value = titleInputValue,
+                        onValueChange = { titleInputValue = it },
+                        modifier = Modifier.fillMaxWidth().focusRequester(titleFocusRequester),
+                        textStyle = TextStyle(
+                            color = textColor, 
+                            fontSize = 24.sp, 
+                            fontWeight = FontWeight.Bold, 
+                            fontFamily = FontFamily.Monospace,
+                            textAlign = TextAlign.Center // 🚨 居中输入
+                        ),
+                        cursorBrush = SolidColor(textColor),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(onDone = { commitTitle() }), // 🚨 回车直接封印
+                        decorationBox = { innerTextField ->
+                            if (titleInputValue.isEmpty()) {
+                                Text("标题", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace)
+                            }
+                            innerTextField()
+                        }
+                    )
+                    // 那条极其优雅的细线
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(textColor.copy(alpha = 0.5f)))
                 }
             }
         }
