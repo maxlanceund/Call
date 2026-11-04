@@ -1,4 +1,3 @@
-
 package com.maxlance.call
 
 import android.content.Intent
@@ -10,8 +9,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -29,12 +26,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
@@ -53,282 +48,120 @@ fun CallApp() {
     val scrollState = rememberScrollState()
 
     var isPaperMode by remember { mutableStateOf(true) }
-    var isHistoryOpen by remember { mutableStateOf(false) }
-
     var currentFile by remember { mutableStateOf<File?>(null) }
     var isReadOnly by remember { mutableStateOf(true) }
-    var text by remember { mutableStateOf("") }
     var isDraft by remember { mutableStateOf(false) }
-
+    var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     var fontSize by remember { mutableStateOf(16.sp) }
-
-    var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
-
-    fun refreshLogs() {
-        val files = context.filesDir.listFiles { file -> file.extension == "md" }
-        files?.forEach { if (it.length() == 0L) it.delete() } 
-        val validFiles = context.filesDir.listFiles { file -> file.extension == "md" }
-        allLogs = validFiles?.sortedByDescending { it.lastModified() } ?: emptyList()
-    }
-
-    LaunchedEffect(Unit) {
-        refreshLogs()
-        if (allLogs.isNotEmpty()) {
-            currentFile = allLogs.first()
-            text = currentFile?.readText() ?: ""
-            isReadOnly = true
-            isDraft = false 
-        }
-    }
 
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
-    LaunchedEffect(text) {
-        if (!isReadOnly && text.isNotEmpty()) {
-            scrollState.animateScrollTo(scrollState.maxValue)
-            delay(1000)
-            try { currentFile?.writeText(text) } catch (e: Exception) { e.printStackTrace() }
+    LaunchedEffect(Unit) {
+        val files = context.filesDir.listFiles { file -> file.extension == "md" }
+        val validFiles = files?.filter { it.length() > 0 }?.sortedByDescending { it.lastModified() }
+        if (validFiles?.isNotEmpty() == true) {
+            currentFile = validFiles.first()
+            textFieldValue = TextFieldValue(currentFile?.readText() ?: "")
         }
     }
 
+    LaunchedEffect(textFieldValue.text) {
+        if (!isReadOnly && textFieldValue.text.isNotEmpty()) {
+            delay(1000)
+            try { currentFile?.writeText(textFieldValue.text) } catch (e: Exception) {}
+        }
+    }
+
+    // 退出保存
     DisposableEffect(Unit) {
-        onDispose { 
-            if (currentFile != null && text.isNotEmpty()) {
-                try { currentFile?.writeText(text) } catch (e: Exception) { e.printStackTrace() }
+        onDispose {
+            if (currentFile != null && textFieldValue.text.isNotEmpty()) {
+                try { currentFile?.writeText(textFieldValue.text) } catch (e: Exception) {}
             }
         }
     }
 
     LaunchedEffect(isReadOnly) {
         if (!isReadOnly) {
-            delay(150) 
+            delay(150)
             focusRequester.requestFocus()
             keyboardController?.show()
         }
     }
 
-    val displayDateAnnotated = remember(currentFile, isPaperMode) {
-        val dateStr = currentFile?.name?.replace(".md", "") ?: SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
-        val datePart = dateStr.substringBefore("_").replace("-", " ")
-        val timePart = if (dateStr.contains("_")) {
-            val rawTime = dateStr.substringAfter("_")
-            if (rawTime.length >= 4) "${rawTime.substring(0, 2)}:${rawTime.substring(2, 4)}" else ""
-        } else {
-            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date())
-        }
-
-        buildAnnotatedString {
-            withStyle(style = SpanStyle(color = textColor.copy(alpha = 0.5f))) {
-                append("$datePart  ")
-            }
-            if (timePart.isNotEmpty()) {
-                withStyle(style = SpanStyle(color = textColor.copy(alpha = 0.25f), fontSize = 9.sp)) {
-                    append(timePart)
-                }
-            }
-        }
-    }
-
-    if (isHistoryOpen) {
-        AlertDialog(
-            onDismissRequest = { isHistoryOpen = false },
-            confirmButton = {},
-            title = { Text("> L O G S", color = textColor, fontFamily = FontFamily.Monospace, fontSize = 12.sp) },
-            text = {
-                LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
-                    items(allLogs, key = { it.absolutePath }) { file ->
-                        val fileName = file.name.replace(".md", "")
-                        val displayName = if (fileName.contains("_")) {
-                            val datePart = fileName.substringBefore("_").replace("-", " ")
-                            val timePart = fileName.substringAfter("_").take(4)
-                            val formattedTime = if(timePart.length >= 4) "${timePart.substring(0,2)}:${timePart.substring(2,4)}" else timePart
-                            "$datePart  $formattedTime"
-                        } else "$fileName"
-
-                        Text(
-                            text = displayName,
-                            color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 14.sp,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    currentFile = file
-                                    text = file.readText()
-                                    isReadOnly = true
-                                    isDraft = false 
-                                    isHistoryOpen = false
-                                }
-                                .padding(vertical = 12.dp)
-                        )
-                    }
-                }
-            },
-            containerColor = bgColor
-        )
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(bgColor)
-            .imePadding() 
-            .padding(24.dp)
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = displayDateAnnotated,
-                fontSize = 11.sp,
-                letterSpacing = 2.sp,
-                fontFamily = FontFamily.Monospace,
-                modifier = Modifier.clickable { isHistoryOpen = true }
-            )
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = "-",
-                    color = textColor.copy(alpha = 0.6f),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier
-                        .clickable { 
-                            if (fontSize > 12.sp) fontSize = (fontSize.value - 2).sp 
-                        }
-                        .padding(horizontal = 8.dp)
-                )
-                
-                Text(
-                    text = "+",
-                    color = textColor.copy(alpha = 0.6f),
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier
-                        .clickable { 
-                            if (fontSize < 32.sp) fontSize = (fontSize.value + 2).sp 
-                        }
-                        .padding(horizontal = 8.dp)
-                )
-
-                Text(
-                    text = "◐",
-                    color = textColor.copy(alpha = 0.6f),
-                    fontSize = 18.sp,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier
-                        .clickable { isPaperMode = !isPaperMode }
-                        .padding(start = 12.dp, bottom = 2.dp)
-                )
-            }
-        }
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            BasicTextField(
-                value = text,
-                onValueChange = { if (!isReadOnly) text = it },
-                readOnly = isReadOnly,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .focusRequester(focusRequester)
-                    .verticalScroll(scrollState),
-                textStyle = TextStyle(
-                    color = textColor, 
-                    fontSize = fontSize,
-                    lineHeight = (fontSize.value * 1.6).sp, 
-                    fontFamily = FontFamily.Monospace
-                ),
-                cursorBrush = SolidColor(textColor),
-                decorationBox = { innerTextField ->
-                    if (text.isEmpty() && !isReadOnly) {
-                        Text("> Start logging...", color = textColor.copy(alpha = 0.2f), fontSize = fontSize, fontFamily = FontFamily.Monospace)
-                    }
-                    innerTextField()
-                }
-            )
+    Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
+        Column(modifier = Modifier.fillMaxSize().imePadding().padding(24.dp)) {
             
-            if (isReadOnly && isDraft) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clickable(
-                            indication = null, 
-                            interactionSource = remember { MutableInteractionSource() }
-                        ) {
-                            isReadOnly = false 
-                        }
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            if (isReadOnly) {
-                // 🚨 调用你画的羽毛笔！
-                Image(
-                    painter = painterResource(id = R.drawable.my_pen), 
-                    contentDescription = "New",
-                    colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)), 
-                    modifier = Modifier
-                        .size(24.dp) // 让图片大小适中
-                        .clickable {
-                            val timestamp = SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())
-                            currentFile = File(context.filesDir, "$timestamp.md")
-                            text = ""
-                            isReadOnly = false
-                            isDraft = true 
-                        }
-                )
-            } else {
-                Text(
-                    text = "Ξ",
-                    color = Color(0xFF58A6FF),
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.clickable {
-                        if (text.isNotEmpty()) currentFile?.writeText(text)
-                        isReadOnly = true 
-                        focusManager.clearFocus() 
-                        keyboardController?.hide() 
-                    }.padding(horizontal = 24.dp, vertical = 8.dp)
-                )
-            }
-
-            if (text.isNotEmpty()) {
-                Text("·", color = textColor.copy(alpha = 0.3f), fontSize = 18.sp, fontFamily = FontFamily.Monospace)
+            // 顶部 UI（带 - + 和 ◐）
+            Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(SimpleDateFormat("yyyy MM dd", Locale.getDefault()).format(Date()), color = textColor.copy(alpha = 0.5f), fontSize = 11.sp, letterSpacing = 2.sp, fontFamily = FontFamily.Monospace)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()), color = textColor.copy(alpha = 0.25f), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
+                }
                 
-                Text(
-                    text = "↑",
-                    color = textColor.copy(alpha = 0.8f),
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.clickable {
-                        val shareIntent = Intent().apply {
-                            action = Intent.ACTION_SEND
-                            putExtra(Intent.EXTRA_TEXT, text)
-                            type = "text/plain"
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("-", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize > 12.sp) fontSize = (fontSize.value - 2).sp }.padding(horizontal = 8.dp))
+                    Text("+", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize < 32.sp) fontSize = (fontSize.value + 2).sp }.padding(horizontal = 8.dp))
+                    Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable { isPaperMode = !isPaperMode }.padding(start = 12.dp))
+                }
+            }
+
+            // 正文输入区
+            Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                BasicTextField(
+                    value = textFieldValue,
+                    onValueChange = { if (!isReadOnly) textFieldValue = it },
+                    readOnly = isReadOnly,
+                    modifier = Modifier.fillMaxSize().focusRequester(focusRequester).verticalScroll(scrollState),
+                    textStyle = TextStyle(color = textColor, fontSize = fontSize, lineHeight = (fontSize.value * 1.6).sp, fontFamily = FontFamily.Monospace),
+                    cursorBrush = SolidColor(textColor),
+                    decorationBox = { innerTextField ->
+                        if (textFieldValue.text.isEmpty() && !isReadOnly) {
+                            Text("> Start logging...", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace)
                         }
-                        context.startActivity(Intent.createChooser(shareIntent, "导出 / 分享日记"))
-                    }.padding(horizontal = 24.dp, vertical = 8.dp)
+                        innerTextField()
+                    }
                 )
+
+                // 🚨 核心：透明玻璃层，实现“假保存后点击唤醒”
+                if (isReadOnly && isDraft) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clickable(
+                                indication = null,
+                                interactionSource = remember { MutableInteractionSource() }
+                            ) { isReadOnly = false }
+                    )
+                }
+            }
+
+            // 底部 UI
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
+                if (isReadOnly) {
+                    // 羽毛笔
+                    Image(
+                        painter = painterResource(id = R.drawable.my_pen),
+                        contentDescription = "New",
+                        colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
+                        modifier = Modifier.size(24.dp).clickable {
+                            currentFile = File(context.filesDir, "${SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())}.md")
+                            textFieldValue = TextFieldValue("")
+                            isReadOnly = false
+                            isDraft = true // 🚨 开启草稿模式
+                        }.padding(horizontal = 24.dp)
+                    )
+                } else {
+                    // 假保存 Ξ
+                    Text("Ξ", color = Color(0xFF58A6FF), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
+                        if (textFieldValue.text.isNotEmpty()) currentFile?.writeText(textFieldValue.text)
+                        isReadOnly = true
+                        focusManager.clearFocus()
+                        keyboardController?.hide()
+                    }.padding(horizontal = 24.dp))
+                }
             }
         }
     }
