@@ -1,9 +1,9 @@
 package com.maxlance.call
 
-import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -19,11 +19,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -52,10 +54,12 @@ fun CallApp() {
     
     var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
     
-    // 🚨 极简核心：只有一个状态，控制大标题卡尺出不出现
     var showTitleInput by remember { mutableStateOf(false) }
     var titleInputValue by remember { mutableStateOf("") }
     val titleFocusRequester = remember { FocusRequester() }
+
+    // 🚨 核心修复：记录手指滑动的总距离
+    var totalDragAmount by remember { mutableStateOf(0f) }
 
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
@@ -91,7 +95,6 @@ fun CallApp() {
         }
     }
 
-    // 🚨 核心逻辑：点空白，自动加上 #，塞到最前面
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
             val newTitle = "# " + titleInputValue.trim() + "\n\n"
@@ -106,13 +109,11 @@ fun CallApp() {
 
     Box(modifier = Modifier.fillMaxSize().background(bgColor)) {
         Column(modifier = Modifier.fillMaxSize().imePadding().padding(24.dp)) {
-            // 顶部
             Row(modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date()), color = textColor.copy(alpha = 0.5f), fontSize = 11.sp, fontFamily = FontFamily.Monospace)
                 Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable { isPaperMode = !isPaperMode })
             }
 
-            // 正文区
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 BasicTextField(
                     value = textFieldValue,
@@ -127,11 +128,16 @@ fun CallApp() {
                     }
                 )
                 
-                // 🚨 手势监听：只认向右滑
                 if (!isReadOnly) {
                     Box(modifier = Modifier.fillMaxSize().pointerInput(Unit) {
-                        detectHorizontalDragGestures { _, dragAmount ->
-                            if (dragAmount > 80 && !showTitleInput) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { totalDragAmount = 0f }, // 每次按下清零
+                            onDragEnd = { totalDragAmount = 0f }    // 每次抬起清零
+                        ) { change, dragAmount ->
+                            change.consume() // 拦截事件，防误触
+                            totalDragAmount += dragAmount
+                            // 🚨 只要累计向右滑动超过 80 像素，就触发！
+                            if (totalDragAmount > 80 && !showTitleInput) {
                                 showTitleInput = true
                                 keyboardController?.hide()
                             }
@@ -140,30 +146,37 @@ fun CallApp() {
                 }
             }
 
-            // 底部
-            Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.Center) {
+            Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 if (isReadOnly) {
-                    Text("✎", color = textColor, fontSize = 22.sp, modifier = Modifier.clickable {
-                        currentFile = File(context.filesDir, "${SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())}.md")
-                        textFieldValue = TextFieldValue("")
-                        isReadOnly = false
-                    }.padding(24.dp))
+                    // 🚨 你的灵魂羽毛笔回归
+                    Image(
+                        painter = painterResource(id = R.drawable.my_pen),
+                        contentDescription = "New",
+                        colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clickable {
+                                currentFile = File(context.filesDir, "${SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())}.md")
+                                textFieldValue = TextFieldValue("")
+                                isReadOnly = false
+                            }
+                            .padding(horizontal = 24.dp)
+                    )
                 } else {
                     Text("Ξ", color = Color(0xFF58A6FF), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
                         if (textFieldValue.text.isNotEmpty()) currentFile?.writeText(textFieldValue.text)
                         isReadOnly = true
                         focusManager.clearFocus()
                         keyboardController?.hide()
-                    }.padding(24.dp))
+                    }.padding(horizontal = 24.dp))
                 }
             }
         }
 
-        // 🚨 极简游标卡尺 UI (从顶部滑下)
         if (showTitleInput) {
             Column(
                 modifier = Modifier.fillMaxWidth().background(bgColor.copy(alpha = 0.98f))
-                    .clickable { commitTitle() } // 点击空白处直接提交
+                    .clickable { commitTitle() }
                     .padding(top = 40.dp, bottom = 20.dp, start = 24.dp, end = 24.dp)
             ) {
                 Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
