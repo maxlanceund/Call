@@ -186,14 +186,23 @@ fun CallApp() {
         keyboardController?.hide()
     }
 
+    // 🚨 核心修复二：智能替换/添加标题，绝不破坏正文
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
-            val lines = textFieldValue.text.lines()
-            val filteredLines = lines.dropWhile { it.startsWith("# ") || it.isBlank() }
-            val bodyText = filteredLines.joinToString("\n")
-            val newTitle = "# ${titleInputValue.trim()}\n\n"
-            val cleanText = newTitle + bodyText
-            textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(newTitle.length))
+            val currentText = textFieldValue.text
+            val lines = currentText.lines().toMutableList()
+            
+            if (lines.isNotEmpty() && lines.first().startsWith("# ")) {
+                // 如果原来已经有标题，只替换第一行
+                lines[0] = "# ${titleInputValue.trim()}"
+                val newText = lines.joinToString("\n")
+                textFieldValue = TextFieldValue(text = newText, selection = TextRange(titleInputValue.length + 2))
+            } else {
+                // 如果原来没标题，在顶上插入，并空一行
+                val newTitle = "# ${titleInputValue.trim()}\n\n"
+                textFieldValue = TextFieldValue(text = newTitle + currentText, selection = TextRange(newTitle.length))
+            }
+            
             isReadOnly = false
             isDraft = true
             if (currentFile == null) {
@@ -273,7 +282,6 @@ fun CallApp() {
                                 }
                             }
 
-                            // 🚨 核心修改：加载上下拨动图片
                             if (isLongPressed) {
                                 Image(
                                     painter = painterResource(id = if (isUnlocked) R.drawable.toggle_on else R.drawable.toggle_off),
@@ -282,7 +290,7 @@ fun CallApp() {
                                     colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
                                     modifier = Modifier
                                         .padding(start = 16.dp)
-                                        .size(width = 20.dp, height = 36.dp) // 竖长条形态
+                                        .size(width = 20.dp, height = 36.dp)
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null
@@ -367,6 +375,13 @@ fun CallApp() {
                         contentScale = ContentScale.Fit,
                         colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
                         modifier = Modifier.padding(horizontal = 24.dp).size(24.dp).clickable {
+                            // 🚨 核心修复一：点开神庙时，如果已有标题，自动填进去
+                            val currentText = textFieldValue.text
+                            if (currentText.startsWith("# ")) {
+                                titleInputValue = currentText.substringAfter("# ").substringBefore("\n").trim()
+                            } else {
+                                titleInputValue = ""
+                            }
                             showTitleInput = true
                         }
                     )
