@@ -7,9 +7,18 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +38,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -56,7 +66,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-@OptIn(ExperimentalComposeUiApi::class)
+@OptIn(ExperimentalComposeUiApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun CallApp() {
     val context = LocalContext.current
@@ -89,6 +99,11 @@ fun CallApp() {
     var titleInputValue by remember { mutableStateOf("") }
     val titleFocusRequester = remember { FocusRequester() }
 
+    // 🚨 记录哪篇日记被长按展示了开关
+    var longPressedFileName by remember { mutableStateOf<String?>(null) }
+    // 🚨 记录哪些日记已经被解封允许编辑
+    var unlockedFiles by remember { mutableStateOf<Set<String>>(emptySet()) }
+
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
@@ -97,50 +112,28 @@ fun CallApp() {
             override fun filter(text: AnnotatedString): TransformedText {
                 val textStr = text.text
                 if (!textStr.contains("# ")) return TransformedText(text, OffsetMapping.Identity)
-
                 val transformed = buildAnnotatedString {
                     var originalIndex = 0
                     while (originalIndex < textStr.length) {
                         if (originalIndex + 1 < textStr.length && textStr[originalIndex] == '#' && textStr[originalIndex + 1] == ' ' && (originalIndex == 0 || textStr[originalIndex - 1] == '\n')) {
                             var endOfLine = textStr.indexOf('\n', originalIndex).let { if (it == -1) textStr.length else it }
-                            withStyle(style = SpanStyle(fontSize = 19.sp, fontFamily = maxFontFamily)) {
-                                append(textStr.substring(originalIndex + 2, endOfLine))
-                            }
+                            withStyle(style = SpanStyle(fontSize = 19.sp, fontFamily = maxFontFamily)) { append(textStr.substring(originalIndex + 2, endOfLine)) }
                             originalIndex = endOfLine
-                        } else {
-                            append(textStr[originalIndex])
-                            originalIndex++
-                        }
+                        } else { append(textStr[originalIndex]); originalIndex++ }
                     }
                 }
-
                 val offsetMapping = object : OffsetMapping {
                     override fun originalToTransformed(offset: Int): Int {
-                        var transformedOffset = 0
-                        var originalIndex = 0
-                        while (originalIndex < textStr.length && originalIndex < offset) {
-                            if (originalIndex + 1 < textStr.length && textStr[originalIndex] == '#' && textStr[originalIndex + 1] == ' ' && (originalIndex == 0 || textStr[originalIndex - 1] == '\n')) {
-                                originalIndex += 2
-                                if (offset <= originalIndex) return transformedOffset
-                            } else {
-                                transformedOffset++
-                                originalIndex++
-                            }
+                        var t = 0; var o = 0
+                        while (o < textStr.length && o < offset) {
+                            if (o + 1 < textStr.length && textStr[o] == '#' && textStr[o + 1] == ' ' && (o == 0 || textStr[o - 1] == '\n')) { o += 2; if (offset <= o) return t } else { t++; o++ }
                         }
-                        return transformedOffset.coerceIn(0, transformed.length)
+                        return t.coerceIn(0, transformed.length)
                     }
-
                     override fun transformedToOriginal(offset: Int): Int {
-                        var transformedIndex = 0
-                        var originalIndex = 0
-                        while (originalIndex < textStr.length) {
-                            if (originalIndex + 1 < textStr.length && textStr[originalIndex] == '#' && textStr[originalIndex + 1] == ' ' && (originalIndex == 0 || textStr[originalIndex - 1] == '\n')) {
-                                originalIndex += 2
-                            } else {
-                                if (transformedIndex == offset) return originalIndex
-                                transformedIndex++
-                                originalIndex++
-                            }
+                        var t = 0; var o = 0
+                        while (o < textStr.length) {
+                            if (o + 1 < textStr.length && textStr[o] == '#' && textStr[o + 1] == ' ' && (o == 0 || textStr[o - 1] == '\n')) { o += 2 } else { if (t == offset) return o; t++; o++ }
                         }
                         return textStr.length
                     }
@@ -208,7 +201,6 @@ fun CallApp() {
             val lines = textFieldValue.text.lines()
             val filteredLines = lines.dropWhile { it.startsWith("# ") || it.isBlank() }
             val bodyText = filteredLines.joinToString("\n")
-            
             val newTitle = "# ${titleInputValue.trim()}\n\n"
             val cleanText = newTitle + bodyText
             textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(newTitle.length))
@@ -228,7 +220,7 @@ fun CallApp() {
 
     if (isHistoryOpen) {
         AlertDialog(
-            onDismissRequest = { isHistoryOpen = false },
+            onDismissRequest = { isHistoryOpen = false; longPressedFileName = null },
             confirmButton = {},
             title = {
                 Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
@@ -252,33 +244,93 @@ fun CallApp() {
                         val content = file.readText()
                         val titleMatch = Regex("^# (.*)", RegexOption.MULTILINE).find(content)
                         val title = titleMatch?.groupValues?.get(1)?.trim()
-                        
                         val timeStr = if (fileName.contains("_")) {
                             val datePart = fileName.substringBefore("_").replace("-", " ")
                             val timePart = fileName.substringAfter("_").take(4)
                             val formattedTime = if(timePart.length >= 4) "${timePart.substring(0,2)}:${timePart.substring(2,4)}" else timePart
-                            "$datePart $formattedTime"
+                            "$datePart  $formattedTime"
                         } else fileName
 
-                        val displayName = if (!title.isNullOrBlank()) {
-                            "$title  ·  $timeStr"
-                        } else {
-                            timeStr
-                        }
+                        val isUnlocked = unlockedFiles.contains(file.absolutePath)
+                        val isLongPressed = longPressedFileName == file.absolutePath
 
-                        Text(
-                            text = displayName,
-                            color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f),
-                            fontFamily = FontFamily.Monospace,
-                            fontSize = 14.sp,
-                            modifier = Modifier.fillMaxWidth().clickable {
-                                    currentFile = file
-                                    textFieldValue = TextFieldValue(file.readText())
-                                    isReadOnly = true
-                                    isDraft = false
-                                    isHistoryOpen = false
-                                }.padding(vertical = 12.dp)
-                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .combinedClickable(
+                                    onClick = {
+                                        if (isLongPressed) {
+                                            longPressedFileName = null // 如果开关开着，点正文只是关掉开关
+                                        } else {
+                                            currentFile = file
+                                            textFieldValue = TextFieldValue(file.readText())
+                                            isReadOnly = !isUnlocked // 如果已解封，进入直接可写
+                                            isDraft = true // 始终允许点击唤醒
+                                            isHistoryOpen = false
+                                        }
+                                    },
+                                    onLongClick = {
+                                        // 长按召出那一半一半的开关
+                                        longPressedFileName = if (isLongPressed) null else file.absolutePath
+                                    }
+                                )
+                                .padding(vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                if (!title.isNullOrBlank()) {
+                                    Text(text = title, color = if (file == currentFile) Color(0xFF58A6FF) else textColor, fontFamily = FontFamily.Monospace, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(text = timeStr, color = textColor.copy(alpha = 0.4f), fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                                } else {
+                                    Text(text = timeStr, color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f), fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+                                }
+                            }
+
+                            // 🚨 极其精致的“一半一半”解封开关
+                            if (isLongPressed) {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(start = 16.dp)
+                                        .size(24.dp)
+                                        .border(1.dp, textColor.copy(alpha = 0.5f))
+                                        .clickable(
+                                            interactionSource = remember { MutableInteractionSource() },
+                                            indication = null
+                                        ) {
+                                            // 切换解封状态
+                                            unlockedFiles = if (isUnlocked) {
+                                                unlockedFiles - file.absolutePath
+                                            } else {
+                                                unlockedFiles + file.absolutePath
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    // 左半边填充
+                                    Row(modifier = Modifier.fillMaxSize()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .weight(1f)
+                                                .background(if (isUnlocked) Color.Transparent else textColor.copy(alpha = 0.8f))
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .width(1.dp) // 中间极细的分割线
+                                                .background(textColor.copy(alpha = 0.5f))
+                                        )
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxHeight()
+                                                .weight(1f)
+                                                .background(if (isUnlocked) textColor.copy(alpha = 0.8f) else Color.Transparent)
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -298,7 +350,6 @@ fun CallApp() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("-", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize > 12.sp) fontSize = (fontSize.value - 2).sp }.padding(horizontal = 8.dp))
                     Text("+", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize < 32.sp) fontSize = (fontSize.value + 2).sp }.padding(horizontal = 8.dp))
-                    
                     Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable { 
                         isPaperMode = !isPaperMode 
                         prefs.edit().putBoolean("is_paper_mode", isPaperMode).apply()
@@ -312,7 +363,7 @@ fun CallApp() {
                     onValueChange = { if (!isReadOnly) textFieldValue = it },
                     readOnly = isReadOnly,
                     modifier = Modifier.fillMaxSize().focusRequester(focusRequester).verticalScroll(scrollState),
-                    textStyle = TextStyle(color = textColor, fontSize = fontSize, lineHeight = (fontSize.value * 1.6).sp, fontFamily = maxFontFamily),
+                    textStyle = TextStyle(color = textColor, fontSize = fontSize, lineHeight = (fontSize.value * 1.8).sp, fontFamily = maxFontFamily),
                     cursorBrush = SolidColor(textColor),
                     visualTransformation = if (textFieldValue.composition != null) VisualTransformation.None else visualTransformation,
                     decorationBox = { innerTextField ->
@@ -380,19 +431,18 @@ fun CallApp() {
                         onValueChange = { titleInputValue = it },
                         modifier = Modifier.fillMaxWidth().focusRequester(titleFocusRequester),
                         textStyle = TextStyle(color = textColor, fontSize = 19.sp, fontFamily = maxFontFamily, textAlign = TextAlign.Center),
-                        cursorBrush = SolidColor(textColor), // 光标颜色保持一致
+                        cursorBrush = SolidColor(textColor),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { commitTitle() }),
                         decorationBox = { innerTextField ->
                             if (titleInputValue.isEmpty()) {
-                                // 🚨 老A修改：把占位符改成英文极简风
                                 Text("> TITLE", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                             }
                             innerTextField()
                         }
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Box(modifier = Modifier.fillMaxWidth().height(1.dp).background(textColor.copy(alpha = 0.5f)))
+                    Box(modifier = Modifier.fillMaxWidth().height(0.5.dp).background(textColor.copy(alpha = 0.2f)))
                 }
             }
         }
