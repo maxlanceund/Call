@@ -64,13 +64,12 @@ fun CallApp() {
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
-    // 🚨 终极字体加载方案：从 assets 强拽进来，就算天塌下来也能加载！
     val maxFontFamily = remember {
         try {
             val typeface = Typeface.createFromAsset(context.assets, "max_serif.ttf")
             FontFamily(typeface)
         } catch (e: Exception) {
-            FontFamily.Monospace // 兜底方案
+            FontFamily.Monospace
         }
     }
 
@@ -80,7 +79,7 @@ fun CallApp() {
     var isReadOnly by remember { mutableStateOf(true) }
     var isDraft by remember { mutableStateOf(false) }
     var textFieldValue by remember { mutableStateOf(TextFieldValue("")) }
-    var fontSize by remember { mutableStateOf(16.sp) } // 正文默认 16
+    var fontSize by remember { mutableStateOf(16.sp) }
     var allLogs by remember { mutableStateOf<List<File>>(emptyList()) }
 
     var showTitleInput by remember { mutableStateOf(false) }
@@ -90,7 +89,6 @@ fun CallApp() {
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
     val textColor = if (isPaperMode) Color(0xFF1A1A1A) else Color(0xFFE6EDF3)
 
-    // 🚨 终极视觉转换器：19sp，不加粗，使用专属字体
     val visualTransformation = remember(maxFontFamily) {
         object : VisualTransformation {
             override fun filter(text: AnnotatedString): TransformedText {
@@ -102,7 +100,6 @@ fun CallApp() {
                     for (i in lines.indices) {
                         val line = lines[i]
                         if (line.startsWith("# ")) {
-                            // 去掉 FontWeight.Bold，纯靠字体本身的骨骼撑起气势
                             withStyle(style = SpanStyle(fontSize = 19.sp, fontFamily = maxFontFamily)) {
                                 append(line.substring(2))
                             }
@@ -159,8 +156,10 @@ fun CallApp() {
         }
     }
 
+    // 🚨 核心修复一：打字时自动滚动到最底部（治好被键盘挡住）
     LaunchedEffect(textFieldValue.text) {
         if (!isReadOnly && textFieldValue.text.isNotEmpty()) {
+            scrollState.animateScrollTo(scrollState.maxValue)
             delay(1000)
             try { currentFile?.writeText(textFieldValue.text) } catch (e: Exception) {}
         }
@@ -196,9 +195,11 @@ fun CallApp() {
         keyboardController?.hide()
     }
 
+    // 🚨 核心修复二：智能换行（如果本来没字，就不空两行）
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
-            val newTitle = "\n\n# ${titleInputValue.trim()}\n\n"
+            val prefix = if (textFieldValue.text.isBlank()) "" else "\n\n"
+            val newTitle = "${prefix}# ${titleInputValue.trim()}\n\n"
             val cleanText = newTitle + textFieldValue.text
             textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(newTitle.length))
             isReadOnly = false
@@ -287,7 +288,6 @@ fun CallApp() {
                     onValueChange = { if (!isReadOnly) textFieldValue = it },
                     readOnly = isReadOnly,
                     modifier = Modifier.fillMaxSize().focusRequester(focusRequester).verticalScroll(scrollState),
-                    // 正文也应用专属字体
                     textStyle = TextStyle(color = textColor, fontSize = fontSize, lineHeight = (fontSize.value * 1.6).sp, fontFamily = maxFontFamily),
                     cursorBrush = SolidColor(textColor),
                     visualTransformation = if (textFieldValue.composition != null) VisualTransformation.None else visualTransformation,
@@ -355,7 +355,6 @@ fun CallApp() {
                         value = titleInputValue,
                         onValueChange = { titleInputValue = it },
                         modifier = Modifier.fillMaxWidth().focusRequester(titleFocusRequester),
-                        // 悬浮标题框也应用 19sp 和专属字体
                         textStyle = TextStyle(color = textColor, fontSize = 19.sp, fontFamily = maxFontFamily, textAlign = TextAlign.Center),
                         cursorBrush = SolidColor(textColor),
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
