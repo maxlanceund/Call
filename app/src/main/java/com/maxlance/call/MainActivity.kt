@@ -124,11 +124,18 @@ fun CallApp() {
         keyboardController?.hide()
     }
 
+    // 🚨 最终妥协逻辑：上方留白 + # 号，左对齐
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
-            val newTitle = "# ${titleInputValue.trim()}\n\n"
-            val cleanText = newTitle + textFieldValue.text
-            textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(newTitle.length))
+            // 在标题上方加两个换行符，让它和上面的内容隔开
+            val newTitle = "\n\n# ${titleInputValue.trim()}\n\n"
+            // 如果原来是空的，就不需要上面的两个换行
+            val prefix = if (textFieldValue.text.isEmpty()) "" else "\n\n"
+            val titleText = "$prefix# ${titleInputValue.trim()}\n\n"
+            
+            val cleanText = titleText + textFieldValue.text
+            textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(titleText.length))
+            
             isReadOnly = false
             isDraft = true
             if (currentFile == null) {
@@ -232,21 +239,17 @@ fun CallApp() {
 
             Row(modifier = Modifier.fillMaxWidth().padding(top = 16.dp), horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
                 if (isReadOnly) {
-                    // 🚨 修复：先加 padding 留出点击空间，再限定 size
                     Image(
                         painter = painterResource(id = R.drawable.my_pen),
                         contentDescription = "New",
                         contentScale = ContentScale.Fit,
                         colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
-                        modifier = Modifier
-                            .padding(horizontal = 24.dp)
-                            .size(24.dp)
-                            .clickable {
-                                currentFile = File(context.filesDir, "${SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())}.md")
-                                textFieldValue = TextFieldValue("")
-                                isReadOnly = false
-                                isDraft = true
-                            }
+                        modifier = Modifier.padding(horizontal = 24.dp).size(24.dp).clickable {
+                            currentFile = File(context.filesDir, "${SimpleDateFormat("yyyy-MM-dd_HHmmss", Locale.getDefault()).format(Date())}.md")
+                            textFieldValue = TextFieldValue("")
+                            isReadOnly = false
+                            isDraft = true
+                        }
                     )
                     
                     Text("·", color = textColor.copy(alpha = 0.3f), fontSize = 18.sp, fontFamily = FontFamily.Monospace)
@@ -256,12 +259,9 @@ fun CallApp() {
                         contentDescription = "Title",
                         contentScale = ContentScale.Fit,
                         colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
-                        modifier = Modifier
-                            .padding(horizontal = 24.dp)
-                            .size(24.dp)
-                            .clickable {
-                                showTitleInput = true
-                            }
+                        modifier = Modifier.padding(horizontal = 24.dp).size(24.dp).clickable {
+                            showTitleInput = true
+                        }
                     )
                 } else {
                     Text("Ξ", color = Color(0xFF58A6FF), fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable {
