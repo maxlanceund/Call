@@ -1,5 +1,6 @@
 package com.maxlance.call
 
+import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.os.Bundle
@@ -64,6 +65,10 @@ fun CallApp() {
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
+    // 🚨 核心修复一：引入 SharedPreferences 记住明暗模式
+    val prefs = remember { context.getSharedPreferences("call_prefs", Context.MODE_PRIVATE) }
+    var isPaperMode by remember { mutableStateOf(prefs.getBoolean("is_paper_mode", true)) }
+
     val maxFontFamily = remember {
         try {
             val typeface = Typeface.createFromAsset(context.assets, "max_serif.ttf")
@@ -73,7 +78,6 @@ fun CallApp() {
         }
     }
 
-    var isPaperMode by remember { mutableStateOf(true) }
     var isHistoryOpen by remember { mutableStateOf(false) }
     var currentFile by remember { mutableStateOf<File?>(null) }
     var isReadOnly by remember { mutableStateOf(true) }
@@ -156,7 +160,6 @@ fun CallApp() {
         }
     }
 
-    // 🚨 核心修复一：打字时自动滚动到最底部（治好被键盘挡住）
     LaunchedEffect(textFieldValue.text) {
         if (!isReadOnly && textFieldValue.text.isNotEmpty()) {
             scrollState.animateScrollTo(scrollState.maxValue)
@@ -195,7 +198,6 @@ fun CallApp() {
         keyboardController?.hide()
     }
 
-    // 🚨 核心修复二：智能换行（如果本来没字，就不空两行）
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
             val prefix = if (textFieldValue.text.isBlank()) "" else "\n\n"
@@ -239,12 +241,23 @@ fun CallApp() {
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
                     items(allLogs, key = { it.absolutePath }) { file ->
                         val fileName = file.name.replace(".md", "")
-                        val displayName = if (fileName.contains("_")) {
-                            val datePart = fileName.substringBefore("_").replace("-", " ")
-                            val timePart = fileName.substringAfter("_").take(4)
-                            val formattedTime = if(timePart.length >= 4) "${timePart.substring(0,2)}:${timePart.substring(2,4)}" else timePart
-                            "$datePart  $formattedTime"
-                        } else "$fileName"
+                        
+                        // 🚨 核心修复二：抓取正文里的标题作为展示名
+                        val content = file.readText()
+                        val titleMatch = Regex("^# (.*)", RegexOption.MULTILINE).find(content)
+                        val title = titleMatch?.groupValues?.get(1)?.trim()
+                        
+                        val displayName = if (!title.isNullOrBlank()) {
+                            title // 如果有标题，就优先显示标题
+                        } else {
+                            // 如果没标题，就退回显示时间戳
+                            if (fileName.contains("_")) {
+                                val datePart = fileName.substringBefore("_").replace("-", " ")
+                                val timePart = fileName.substringAfter("_").take(4)
+                                val formattedTime = if(timePart.length >= 4) "${timePart.substring(0,2)}:${timePart.substring(2,4)}" else timePart
+                                "$datePart  $formattedTime"
+                            } else "$fileName"
+                        }
 
                         Text(
                             text = displayName,
@@ -278,7 +291,12 @@ fun CallApp() {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("-", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize > 12.sp) fontSize = (fontSize.value - 2).sp }.padding(horizontal = 8.dp))
                     Text("+", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize < 32.sp) fontSize = (fontSize.value + 2).sp }.padding(horizontal = 8.dp))
-                    Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable { isPaperMode = !isPaperMode }.padding(start = 12.dp))
+                    
+                    // 🚨 切换主题并保存记忆
+                    Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable { 
+                        isPaperMode = !isPaperMode 
+                        prefs.edit().putBoolean("is_paper_mode", isPaperMode).apply()
+                    }.padding(start = 12.dp))
                 }
             }
 
