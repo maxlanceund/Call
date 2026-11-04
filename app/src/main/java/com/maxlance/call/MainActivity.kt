@@ -3,6 +3,8 @@ package com.maxlance.call
 import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
+import android.media.AudioAttributes
+import android.media.SoundPool
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -66,6 +68,24 @@ fun CallApp() {
     val focusManager = LocalFocusManager.current
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
+
+    val soundPool = remember {
+        val audioAttributes = AudioAttributes.Builder()
+            .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
+            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+            .build()
+        SoundPool.Builder().setMaxStreams(5).setAudioAttributes(audioAttributes).build()
+    }
+    
+    var typewriterSoundId by remember { mutableStateOf(0) }
+    var toggleSoundId by remember { mutableStateOf(0) }
+    
+    DisposableEffect(Unit) {
+        // 🚨 修复：读取 res/raw 文件夹
+        typewriterSoundId = soundPool.load(context, R.raw.typewriter, 1)
+        toggleSoundId = soundPool.load(context, R.raw.toggle, 1)
+        onDispose { soundPool.release() }
+    }
 
     val prefs = remember { context.getSharedPreferences("call_prefs", Context.MODE_PRIVATE) }
     var isPaperMode by remember { mutableStateOf(prefs.getBoolean("is_paper_mode", true)) }
@@ -186,19 +206,16 @@ fun CallApp() {
         keyboardController?.hide()
     }
 
-    // 🚨 核心修复二：智能替换/添加标题，绝不破坏正文
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
             val currentText = textFieldValue.text
             val lines = currentText.lines().toMutableList()
             
             if (lines.isNotEmpty() && lines.first().startsWith("# ")) {
-                // 如果原来已经有标题，只替换第一行
                 lines[0] = "# ${titleInputValue.trim()}"
                 val newText = lines.joinToString("\n")
                 textFieldValue = TextFieldValue(text = newText, selection = TextRange(titleInputValue.length + 2))
             } else {
-                // 如果原来没标题，在顶上插入，并空一行
                 val newTitle = "# ${titleInputValue.trim()}\n\n"
                 textFieldValue = TextFieldValue(text = newTitle + currentText, selection = TextRange(newTitle.length))
             }
@@ -295,6 +312,7 @@ fun CallApp() {
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null
                                         ) {
+                                            soundPool.play(toggleSoundId, 1f, 1f, 0, 0, 1f)
                                             unlockedFiles = if (isUnlocked) {
                                                 unlockedFiles - file.absolutePath
                                             } else {
@@ -333,7 +351,16 @@ fun CallApp() {
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 BasicTextField(
                     value = textFieldValue,
-                    onValueChange = { if (!isReadOnly) textFieldValue = it },
+                    onValueChange = { 
+                        if (!isReadOnly) {
+                            // 🚨 修复音效逻辑：只判断长度增加，不管拼音还是英文，都能清脆地敲击
+                            // 因为拼音临时字母也会触发，但这刚好符合打字机的“无脑敲击”感
+                            if (it.text.length > textFieldValue.text.length) {
+                                soundPool.play(typewriterSoundId, 0.6f, 0.6f, 0, 0, 1f)
+                            }
+                            textFieldValue = it 
+                        }
+                    },
                     readOnly = isReadOnly,
                     modifier = Modifier.fillMaxSize().focusRequester(focusRequester).verticalScroll(scrollState),
                     textStyle = TextStyle(color = textColor, fontSize = fontSize, lineHeight = (fontSize.value * 1.8).sp, fontFamily = maxFontFamily),
@@ -375,7 +402,6 @@ fun CallApp() {
                         contentScale = ContentScale.Fit,
                         colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
                         modifier = Modifier.padding(horizontal = 24.dp).size(24.dp).clickable {
-                            // 🚨 核心修复一：点开神庙时，如果已有标题，自动填进去
                             val currentText = textFieldValue.text
                             if (currentText.startsWith("# ")) {
                                 titleInputValue = currentText.substringAfter("# ").substringBefore("\n").trim()
