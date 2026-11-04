@@ -75,11 +75,23 @@ fun CallApp() {
     }
 
     val soundPool = remember {
-        SoundPool.Builder().setMaxStreams(4).build()
+        SoundPool.Builder().setMaxStreams(6).build()
     }
-    val typeSoundId = remember {
-        soundPool.load(context, R.raw.typewriter, 1)
+
+    // 多音效：每个文件一个 soundId，顺序要和选择器里名字对应
+    val soundIds = remember {
+        listOf(
+            soundPool.load(context, R.raw.typewriter, 1),
+            soundPool.load(context, R.raw.typewriter2, 1)
+        )
     }
+    val soundNames = listOf("打字机 1", "打字机 2")
+
+    val prefs = remember { context.getSharedPreferences("call_prefs", Context.MODE_PRIVATE) }
+    var currentSoundIndex by remember {
+        mutableStateOf(prefs.getInt("sound_index", 0).coerceIn(0, soundIds.size - 1))
+    }
+    var showSoundPicker by remember { mutableStateOf(false) }
 
     DisposableEffect(Unit) {
         onDispose {
@@ -88,7 +100,6 @@ fun CallApp() {
         }
     }
 
-    val prefs = remember { context.getSharedPreferences("call_prefs", Context.MODE_PRIVATE) }
     var isPaperMode by remember { mutableStateOf(prefs.getBoolean("is_paper_mode", true)) }
 
     val maxFontFamily = remember {
@@ -238,6 +249,50 @@ fun CallApp() {
         refreshLogs()
     }
 
+    // ===== 音效选择弹窗 =====
+    if (showSoundPicker) {
+        AlertDialog(
+            onDismissRequest = { showSoundPicker = false },
+            confirmButton = {},
+            title = {
+                Text("> 打字音效", color = textColor, fontFamily = FontFamily.Monospace, fontSize = 12.sp)
+            },
+            text = {
+                Column {
+                    soundNames.forEachIndexed { index, name ->
+                        val selected = index == currentSoundIndex
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    currentSoundIndex = index
+                                    prefs.edit().putInt("sound_index", index).apply()
+                                    // 当场试听
+                                    soundPool.play(soundIds[index], 1f, 1f, 1, 0, 1f)
+                                }
+                                .padding(vertical = 14.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = if (selected) "● " else "○ ",
+                                color = if (selected) Color(0xFF58A6FF) else textColor.copy(alpha = 0.4f),
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp
+                            )
+                            Text(
+                                text = name,
+                                color = if (selected) Color(0xFF58A6FF) else textColor,
+                                fontFamily = FontFamily.Monospace,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+            },
+            containerColor = bgColor
+        )
+    }
+
     if (isHistoryOpen) {
         AlertDialog(
             onDismissRequest = { isHistoryOpen = false; longPressedFileName = null },
@@ -342,6 +397,7 @@ fun CallApp() {
                 }
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text("♪", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, modifier = Modifier.clickable { showSoundPicker = true }.padding(horizontal = 8.dp))
                     Text("-", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize > 12.sp) fontSize = (fontSize.value - 2).sp }.padding(horizontal = 8.dp))
                     Text("+", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize < 32.sp) fontSize = (fontSize.value + 2).sp }.padding(horizontal = 8.dp))
                     Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable {
@@ -357,7 +413,7 @@ fun CallApp() {
                     onValueChange = {
                         if (!isReadOnly) {
                             if (it.text.length > textFieldValue.text.length && it.composition == null) {
-                                soundPool.play(typeSoundId, 1f, 1f, 1, 0, 1f)
+                                soundPool.play(soundIds[currentSoundIndex], 1f, 1f, 1, 0, 1f)
                             }
                             textFieldValue = it
                         }
