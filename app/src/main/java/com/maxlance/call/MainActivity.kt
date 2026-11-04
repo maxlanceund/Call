@@ -69,28 +69,23 @@ fun CallApp() {
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
-    // 🚨 核心音效引擎：SoundPool
     val soundPool = remember {
         val audioAttributes = AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_ASSISTANCE_SONIFICATION)
             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
             .build()
-        SoundPool.Builder().setMaxStreams(5).setAudioAttributes(audioAttributes).build()
+        // 🚨 核心修复：限制最多同时播放 1 个音效！防止 1 秒长的录音重叠！
+        SoundPool.Builder().setMaxStreams(1).setAudioAttributes(audioAttributes).build()
     }
     
     var typewriterSoundId by remember { mutableStateOf(0) }
-    var toggleSoundId by remember { mutableStateOf(0) }
-    var isSoundLoaded by remember { mutableStateOf(false) } // 只有加载完才允许播放
+    var isSoundLoaded by remember { mutableStateOf(false) }
     
     DisposableEffect(Unit) {
-        // 监听加载状态，加载成功一个就标记为 true
         soundPool.setOnLoadCompleteListener { _, _, status ->
-            if (status == 0) {
-                isSoundLoaded = true
-            }
+            if (status == 0) isSoundLoaded = true
         }
         typewriterSoundId = soundPool.load(context, R.raw.typewriter, 1)
-        toggleSoundId = soundPool.load(context, R.raw.toggle, 1)
         onDispose { soundPool.release() }
     }
 
@@ -319,10 +314,6 @@ fun CallApp() {
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null
                                         ) {
-                                            // 🚨 2. 点击开关时，播放真实开关音效（音量100%）
-                                            if (isSoundLoaded) {
-                                                soundPool.play(toggleSoundId, 1f, 1f, 0, 0, 1f)
-                                            }
                                             unlockedFiles = if (isUnlocked) {
                                                 unlockedFiles - file.absolutePath
                                             } else {
@@ -363,10 +354,7 @@ fun CallApp() {
                     value = textFieldValue,
                     onValueChange = { 
                         if (!isReadOnly) {
-                            // 🚨 1. 核心打字机音效触发逻辑
-                            // 只有当：音频加载完毕 + 字符长度增加（也就是打字，不是删字）时，才播放
                             if (isSoundLoaded && it.text.length > textFieldValue.text.length) {
-                                // 音量设为60%，避免太吵，速率设为正常
                                 soundPool.play(typewriterSoundId, 0.6f, 0.6f, 0, 0, 1f)
                             }
                             textFieldValue = it 
