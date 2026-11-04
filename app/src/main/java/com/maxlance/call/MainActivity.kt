@@ -7,18 +7,11 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.ExperimentalFoundationApi
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -38,7 +31,6 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -99,9 +91,7 @@ fun CallApp() {
     var titleInputValue by remember { mutableStateOf("") }
     val titleFocusRequester = remember { FocusRequester() }
 
-    // 🚨 记录哪篇日记被长按展示了开关
     var longPressedFileName by remember { mutableStateOf<String?>(null) }
-    // 🚨 记录哪些日记已经被解封允许编辑
     var unlockedFiles by remember { mutableStateOf<Set<String>>(emptySet()) }
 
     val bgColor = if (isPaperMode) Color(0xFFF4F1EA) else Color(0xFF0D1117)
@@ -259,18 +249,14 @@ fun CallApp() {
                                 .fillMaxWidth()
                                 .combinedClickable(
                                     onClick = {
-                                        if (isLongPressed) {
-                                            longPressedFileName = null // 如果开关开着，点正文只是关掉开关
-                                        } else {
-                                            currentFile = file
-                                            textFieldValue = TextFieldValue(file.readText())
-                                            isReadOnly = !isUnlocked // 如果已解封，进入直接可写
-                                            isDraft = true // 始终允许点击唤醒
-                                            isHistoryOpen = false
-                                        }
+                                        currentFile = file
+                                        textFieldValue = TextFieldValue(file.readText())
+                                        isReadOnly = !isUnlocked
+                                        isDraft = true 
+                                        isHistoryOpen = false
+                                        longPressedFileName = null
                                     },
                                     onLongClick = {
-                                        // 长按召出那一半一半的开关
                                         longPressedFileName = if (isLongPressed) null else file.absolutePath
                                     }
                                 )
@@ -279,56 +265,35 @@ fun CallApp() {
                         ) {
                             Column(modifier = Modifier.weight(1f)) {
                                 if (!title.isNullOrBlank()) {
-                                    Text(text = title, color = if (file == currentFile) Color(0xFF58A6FF) else textColor, fontFamily = FontFamily.Monospace, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                                    Text(text = title, color = if (file == currentFile) Color(0xFF58A6FF) else textColor, fontFamily = FontFamily.Monospace, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                                     Spacer(modifier = Modifier.height(4.dp))
-                                    Text(text = timeStr, color = textColor.copy(alpha = 0.4f), fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                                    Text(text = timeStr, color = textColor.copy(alpha = 0.4f), fontFamily = FontFamily.Monospace, fontSize = 10.sp)
                                 } else {
-                                    Text(text = timeStr, color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f), fontFamily = FontFamily.Monospace, fontSize = 14.sp)
+                                    Text(text = timeStr, color = if (file == currentFile) Color(0xFF58A6FF) else textColor.copy(alpha = 0.7f), fontFamily = FontFamily.Monospace, fontSize = 13.sp)
                                 }
                             }
 
-                            // 🚨 极其精致的“一半一半”解封开关
+                            // 🚨 核心修改：加载上下拨动图片
                             if (isLongPressed) {
-                                Box(
+                                Image(
+                                    painter = painterResource(id = if (isUnlocked) R.drawable.toggle_on else R.drawable.toggle_off),
+                                    contentDescription = "Toggle",
+                                    contentScale = ContentScale.Fit,
+                                    colorFilter = ColorFilter.tint(textColor.copy(alpha = 0.8f)),
                                     modifier = Modifier
                                         .padding(start = 16.dp)
-                                        .size(24.dp)
-                                        .border(1.dp, textColor.copy(alpha = 0.5f))
+                                        .size(width = 20.dp, height = 36.dp) // 竖长条形态
                                         .clickable(
                                             interactionSource = remember { MutableInteractionSource() },
                                             indication = null
                                         ) {
-                                            // 切换解封状态
                                             unlockedFiles = if (isUnlocked) {
                                                 unlockedFiles - file.absolutePath
                                             } else {
                                                 unlockedFiles + file.absolutePath
                                             }
-                                        },
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    // 左半边填充
-                                    Row(modifier = Modifier.fillMaxSize()) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .weight(1f)
-                                                .background(if (isUnlocked) Color.Transparent else textColor.copy(alpha = 0.8f))
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .width(1.dp) // 中间极细的分割线
-                                                .background(textColor.copy(alpha = 0.5f))
-                                        )
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxHeight()
-                                                .weight(1f)
-                                                .background(if (isUnlocked) textColor.copy(alpha = 0.8f) else Color.Transparent)
-                                        )
-                                    }
-                                }
+                                        }
+                                )
                             }
                         }
                     }
