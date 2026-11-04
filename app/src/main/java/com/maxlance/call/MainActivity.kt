@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Typeface
 import android.media.AudioManager
+import android.media.SoundPool
 import android.media.ToneGenerator
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -69,20 +70,22 @@ fun CallApp() {
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
-    // 🚨 终极底层：ToneGenerator。直接调用硬件发声，不需要任何文件！
-    val toneGenerator = remember { 
-        ToneGenerator(AudioManager.STREAM_MUSIC, 70) // 70的音量
+    val toneGenerator = remember {
+        ToneGenerator(AudioManager.STREAM_MUSIC, 70)
     }
 
-    // 🚨 测试代码：App 一启动，强制“滴”一声，如果没声音就是系统/媒体音量的问题！
-    LaunchedEffect(Unit) {
-        try {
-            toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 200)
-        } catch (e: Exception) {}
+    val soundPool = remember {
+        SoundPool.Builder().setMaxStreams(4).build()
+    }
+    val typeSoundId = remember {
+        soundPool.load(context, R.raw.typewriter, 1)
     }
 
     DisposableEffect(Unit) {
-        onDispose { toneGenerator.release() }
+        onDispose {
+            toneGenerator.release()
+            soundPool.release()
+        }
     }
 
     val prefs = remember { context.getSharedPreferences("call_prefs", Context.MODE_PRIVATE) }
@@ -120,6 +123,7 @@ fun CallApp() {
             override fun filter(text: AnnotatedString): TransformedText {
                 val textStr = text.text
                 if (!textStr.contains("# ")) return TransformedText(text, OffsetMapping.Identity)
+
                 val transformed = buildAnnotatedString {
                     var originalIndex = 0
                     while (originalIndex < textStr.length) {
@@ -130,6 +134,7 @@ fun CallApp() {
                         } else { append(textStr[originalIndex]); originalIndex++ }
                     }
                 }
+
                 val offsetMapping = object : OffsetMapping {
                     override fun originalToTransformed(offset: Int): Int {
                         var t = 0; var o = 0
@@ -138,6 +143,7 @@ fun CallApp() {
                         }
                         return t.coerceIn(0, transformed.length)
                     }
+
                     override fun transformedToOriginal(offset: Int): Int {
                         var t = 0; var o = 0
                         while (o < textStr.length) {
@@ -208,7 +214,7 @@ fun CallApp() {
         if (titleInputValue.isNotBlank()) {
             val currentText = textFieldValue.text
             val lines = currentText.lines().toMutableList()
-            
+
             if (lines.isNotEmpty() && lines.first().startsWith("# ")) {
                 lines[0] = "# ${titleInputValue.trim()}"
                 val newText = lines.joinToString("\n")
@@ -217,7 +223,7 @@ fun CallApp() {
                 val newTitle = "# ${titleInputValue.trim()}\n\n"
                 textFieldValue = TextFieldValue(text = newTitle + currentText, selection = TextRange(newTitle.length))
             }
-            
+
             isReadOnly = false
             isDraft = true
             if (currentFile == null) {
@@ -261,7 +267,7 @@ fun CallApp() {
                         val timeStr = if (fileName.contains("_")) {
                             val datePart = fileName.substringBefore("_").replace("-", " ")
                             val timePart = fileName.substringAfter("_").take(4)
-                            val formattedTime = if(timePart.length >= 4) "${timePart.substring(0,2)}:${timePart.substring(2,4)}" else timePart
+                            val formattedTime = if (timePart.length >= 4) "${timePart.substring(0, 2)}:${timePart.substring(2, 4)}" else timePart
                             "$datePart  $formattedTime"
                         } else fileName
 
@@ -276,7 +282,7 @@ fun CallApp() {
                                         currentFile = file
                                         textFieldValue = TextFieldValue(file.readText())
                                         isReadOnly = !isUnlocked
-                                        isDraft = true 
+                                        isDraft = true
                                         isHistoryOpen = false
                                         longPressedFileName = null
                                     },
@@ -334,12 +340,12 @@ fun CallApp() {
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date()), color = textColor.copy(alpha = 0.25f), fontSize = 9.sp, fontFamily = FontFamily.Monospace)
                 }
-                
+
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("-", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize > 12.sp) fontSize = (fontSize.value - 2).sp }.padding(horizontal = 8.dp))
                     Text("+", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize < 32.sp) fontSize = (fontSize.value + 2).sp }.padding(horizontal = 8.dp))
-                    Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable { 
-                        isPaperMode = !isPaperMode 
+                    Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable {
+                        isPaperMode = !isPaperMode
                         prefs.edit().putBoolean("is_paper_mode", isPaperMode).apply()
                     }.padding(start = 12.dp))
                 }
@@ -348,13 +354,12 @@ fun CallApp() {
             Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
                 BasicTextField(
                     value = textFieldValue,
-                    onValueChange = { 
+                    onValueChange = {
                         if (!isReadOnly) {
-                            if (it.text.length > textFieldValue.text.length) {
-                                // 🚨 触发打字音：极短促的系统提示音
-                                toneGenerator.startTone(ToneGenerator.TONE_CDMA_PIP, 20) 
+                            if (it.text.length > textFieldValue.text.length && it.composition == null) {
+                                soundPool.play(typeSoundId, 1f, 1f, 1, 0, 1f)
                             }
-                            textFieldValue = it 
+                            textFieldValue = it
                         }
                     },
                     readOnly = isReadOnly,
@@ -389,7 +394,7 @@ fun CallApp() {
                             isDraft = true
                         }
                     )
-                    
+
                     Text("·", color = textColor.copy(alpha = 0.3f), fontSize = 18.sp, fontFamily = FontFamily.Monospace)
 
                     Image(
