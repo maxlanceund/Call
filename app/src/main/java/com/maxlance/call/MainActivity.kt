@@ -65,7 +65,6 @@ fun CallApp() {
     val focusRequester = remember { FocusRequester() }
     val scrollState = rememberScrollState()
 
-    // 🚨 核心修复一：引入 SharedPreferences 记住明暗模式
     val prefs = remember { context.getSharedPreferences("call_prefs", Context.MODE_PRIVATE) }
     var isPaperMode by remember { mutableStateOf(prefs.getBoolean("is_paper_mode", true)) }
 
@@ -100,41 +99,47 @@ fun CallApp() {
                 if (!textStr.contains("# ")) return TransformedText(text, OffsetMapping.Identity)
 
                 val transformed = buildAnnotatedString {
-                    val lines = textStr.split("\n")
-                    for (i in lines.indices) {
-                        val line = lines[i]
-                        if (line.startsWith("# ")) {
+                    var originalIndex = 0
+                    while (originalIndex < textStr.length) {
+                        if (originalIndex + 1 < textStr.length && textStr[originalIndex] == '#' && textStr[originalIndex + 1] == ' ' && (originalIndex == 0 || textStr[originalIndex - 1] == '\n')) {
+                            var endOfLine = textStr.indexOf('\n', originalIndex).let { if (it == -1) textStr.length else it }
                             withStyle(style = SpanStyle(fontSize = 19.sp, fontFamily = maxFontFamily)) {
-                                append(line.substring(2))
+                                append(textStr.substring(originalIndex + 2, endOfLine))
                             }
+                            originalIndex = endOfLine
                         } else {
-                            append(line)
+                            append(textStr[originalIndex])
+                            originalIndex++
                         }
-                        if (i < lines.size - 1) append("\n")
                     }
                 }
 
                 val offsetMapping = object : OffsetMapping {
                     override fun originalToTransformed(offset: Int): Int {
-                        var hiddenCount = 0
-                        for (i in 0 until offset) {
-                            if (i + 1 < textStr.length && textStr[i] == '#' && textStr[i + 1] == ' ' && (i == 0 || textStr[i - 1] == '\n')) {
-                                if (offset <= i + 2) hiddenCount += offset - i else hiddenCount += 2
+                        var transformedOffset = 0
+                        var originalIndex = 0
+                        while (originalIndex < textStr.length && originalIndex < offset) {
+                            if (originalIndex + 1 < textStr.length && textStr[originalIndex] == '#' && textStr[originalIndex + 1] == ' ' && (originalIndex == 0 || textStr[originalIndex - 1] == '\n')) {
+                                originalIndex += 2
+                                if (offset <= originalIndex) return transformedOffset
+                            } else {
+                                transformedOffset++
+                                originalIndex++
                             }
                         }
-                        return (offset - hiddenCount).coerceIn(0, transformed.length)
+                        return transformedOffset.coerceIn(0, transformed.length)
                     }
+
                     override fun transformedToOriginal(offset: Int): Int {
-                        if (offset == 0) return 0
-                        var transformedCount = 0
+                        var transformedIndex = 0
                         var originalIndex = 0
                         while (originalIndex < textStr.length) {
                             if (originalIndex + 1 < textStr.length && textStr[originalIndex] == '#' && textStr[originalIndex + 1] == ' ' && (originalIndex == 0 || textStr[originalIndex - 1] == '\n')) {
                                 originalIndex += 2
                             } else {
-                                transformedCount++
+                                if (transformedIndex == offset) return originalIndex
+                                transformedIndex++
                                 originalIndex++
-                                if (transformedCount == offset) return originalIndex
                             }
                         }
                         return textStr.length
@@ -200,9 +205,12 @@ fun CallApp() {
 
     fun commitTitle() {
         if (titleInputValue.isNotBlank()) {
-            val prefix = if (textFieldValue.text.isBlank()) "" else "\n\n"
-            val newTitle = "${prefix}# ${titleInputValue.trim()}\n\n"
-            val cleanText = newTitle + textFieldValue.text
+            val lines = textFieldValue.text.lines()
+            val filteredLines = lines.dropWhile { it.startsWith("# ") || it.isBlank() }
+            val bodyText = filteredLines.joinToString("\n")
+            
+            val newTitle = "# ${titleInputValue.trim()}\n\n"
+            val cleanText = newTitle + bodyText
             textFieldValue = TextFieldValue(text = cleanText, selection = TextRange(newTitle.length))
             isReadOnly = false
             isDraft = true
@@ -241,22 +249,21 @@ fun CallApp() {
                 LazyColumn(modifier = Modifier.fillMaxWidth().heightIn(max = 400.dp)) {
                     items(allLogs, key = { it.absolutePath }) { file ->
                         val fileName = file.name.replace(".md", "")
-                        
-                        // 🚨 核心修复二：抓取正文里的标题作为展示名
                         val content = file.readText()
                         val titleMatch = Regex("^# (.*)", RegexOption.MULTILINE).find(content)
                         val title = titleMatch?.groupValues?.get(1)?.trim()
                         
+                        val timeStr = if (fileName.contains("_")) {
+                            val datePart = fileName.substringBefore("_").replace("-", " ")
+                            val timePart = fileName.substringAfter("_").take(4)
+                            val formattedTime = if(timePart.length >= 4) "${timePart.substring(0,2)}:${timePart.substring(2,4)}" else timePart
+                            "$datePart $formattedTime"
+                        } else fileName
+
                         val displayName = if (!title.isNullOrBlank()) {
-                            title // 如果有标题，就优先显示标题
+                            "$title  ·  $timeStr"
                         } else {
-                            // 如果没标题，就退回显示时间戳
-                            if (fileName.contains("_")) {
-                                val datePart = fileName.substringBefore("_").replace("-", " ")
-                                val timePart = fileName.substringAfter("_").take(4)
-                                val formattedTime = if(timePart.length >= 4) "${timePart.substring(0,2)}:${timePart.substring(2,4)}" else timePart
-                                "$datePart  $formattedTime"
-                            } else "$fileName"
+                            timeStr
                         }
 
                         Text(
@@ -292,7 +299,6 @@ fun CallApp() {
                     Text("-", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize > 12.sp) fontSize = (fontSize.value - 2).sp }.padding(horizontal = 8.dp))
                     Text("+", color = textColor.copy(alpha = 0.6f), fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.clickable { if (fontSize < 32.sp) fontSize = (fontSize.value + 2).sp }.padding(horizontal = 8.dp))
                     
-                    // 🚨 切换主题并保存记忆
                     Text("◐", color = textColor.copy(alpha = 0.6f), fontSize = 18.sp, modifier = Modifier.clickable { 
                         isPaperMode = !isPaperMode 
                         prefs.edit().putBoolean("is_paper_mode", isPaperMode).apply()
@@ -374,12 +380,13 @@ fun CallApp() {
                         onValueChange = { titleInputValue = it },
                         modifier = Modifier.fillMaxWidth().focusRequester(titleFocusRequester),
                         textStyle = TextStyle(color = textColor, fontSize = 19.sp, fontFamily = maxFontFamily, textAlign = TextAlign.Center),
-                        cursorBrush = SolidColor(textColor),
+                        cursorBrush = SolidColor(textColor), // 光标颜色保持一致
                         keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                         keyboardActions = KeyboardActions(onDone = { commitTitle() }),
                         decorationBox = { innerTextField ->
                             if (titleInputValue.isEmpty()) {
-                                Text("标题", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                                // 🚨 老A修改：把占位符改成英文极简风
+                                Text("> TITLE", color = textColor.copy(alpha = 0.2f), fontFamily = FontFamily.Monospace, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
                             }
                             innerTextField()
                         }
