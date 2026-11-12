@@ -18,3 +18,5 @@
 # Python 缓存
 __pycache__/
 *.pyc
+neutron_star_data/
+*.dat
