@@ -47,3 +47,7 @@ for p in test_pressures:
 np.savetxt("data_hard_core.csv", np.array(hard_data), delimiter=",", header="Mass,Lambda", comments="")
 np.savetxt("data_soft_core.csv", np.array(soft_data), delimiter=",", header="Mass,Lambda", comments="")
 print("全部数据已计算完毕并强制写入 CSV。")
+print("====== HARD_CORE ======")
+for row in hard_data: print(row)
+print("====== SOFT_CORE ======")
+for row in soft_data: print(row)
