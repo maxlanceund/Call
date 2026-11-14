@@ -1,5 +1,5 @@
 <div align="center">
-<img src="call_logo_rounded.png" width="120" alt="Call Logo">
+<img src="log.jpg" width="120" alt="Call Logo" style="border-radius: 25px;">
 
   
   # Call
